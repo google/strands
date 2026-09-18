@@ -222,11 +222,11 @@ public final class Strands {
             if (e instanceof InterruptedException) {
               Thread.currentThread().interrupt(); // Restore the interrupted status
             }
-            if (e instanceof FailedTaskException x) {
-              // Unwrap FailedTaskException to avoid it being wrapped with ExecutionException.
-              result.setException(requireNonNull(x.getCause()));
+            Throwable cause = e instanceof FailedTaskException x ? requireNonNull(x.getCause()) : e;
+            if (cause instanceof CancellationException) {
+              result.cancel(false);
             } else {
-              result.setException(e);
+              result.setException(cause);
             }
           }
         };

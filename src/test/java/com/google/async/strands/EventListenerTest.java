@@ -190,8 +190,8 @@ public class EventListenerTest {
                       });
               return s1.await();
             });
-    ExecutionException e = assertThrows(ExecutionException.class, () -> result.get());
-    assertThat(e).hasCauseThat().isInstanceOf(CancellationException.class);
+    assertThrows(CancellationException.class, () -> result.get());
+    assertThat(result.isCancelled()).isTrue();
     verify(mockListener).scopeOpen();
     verify(mockListener).scopeClose(anyLong());
     verify(mockListener, times(2)).strandCreate();

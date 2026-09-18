@@ -31,6 +31,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.time.Duration;
 import java.util.Objects;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import org.jspecify.annotations.Nullable;
@@ -253,6 +254,9 @@ public final class StrandsRule implements TestRule {
       throw new AssertionError(
           "Expected Strand to complete successfully. Actually failed with: " + e.getCause(),
           e.getCause());
+    } catch (CancellationException e) {
+      sneakyThrow(e);
+      return null;
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new AssertionError("Thread was interrupted before Strand completed", e);
@@ -281,14 +285,20 @@ public final class StrandsRule implements TestRule {
       throw new AssertionError("Future did not complete within " + timeout.toMillis() + "ms", e);
     } catch (ExecutionException e) {
       Throwable cause = requireNonNull(e.getCause());
-      try {
+      if (exceptionClass.isInstance(cause)) {
         return exceptionClass.cast(cause);
-      } catch (ClassCastException cce) {
-        throw new AssertionError(
-            String.format(
-                "Expected Strand to fail with %s; actually failed with %s", exceptionClass, cause),
-            cce);
       }
+      throw new AssertionError(
+          String.format(
+              "Expected Strand to fail with %s; actually failed with %s", exceptionClass, cause),
+          cause);
+    } catch (CancellationException e) {
+      if (exceptionClass.isInstance(e)) {
+        return exceptionClass.cast(e);
+      }
+      throw new AssertionError(
+          String.format("Expected Strand to fail with %s; actually was cancelled", exceptionClass),
+          e);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new AssertionError("Thread was interrupted before promise completed", e);

@@ -22,6 +22,7 @@ import static org.junit.Assert.assertThrows;
 import com.google.async.strands.testing.StrandsRule;
 import com.google.async.strands.testing.StrandsRule.InStrand;
 import java.io.IOException;
+import java.util.concurrent.CancellationException;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -69,6 +70,22 @@ public final class StrandsRuleTest {
   }
 
   @Test
+  public void run_propagatesCancellationException() {
+    StrandsRule standaloneRule = StrandsRule.create();
+    CancellationException thrown =
+        assertThrows(
+            CancellationException.class,
+            () ->
+                standaloneRule.run(
+                    () -> {
+                      throw new CancellationException("cancelled task");
+                    }));
+    // The propagated exception comes from the cancelled Future, so it is not the instance (nor
+    // message) thrown by the task itself.
+    assertThat(thrown).isNotNull();
+  }
+
+  @Test
   public void assertFails_catchesExpectedException() {
     StrandsRule standaloneRule = StrandsRule.create();
     IOException thrown =
@@ -78,5 +95,37 @@ public final class StrandsRuleTest {
               throw new IOException("failed task");
             });
     assertThat(thrown).hasMessageThat().isEqualTo("failed task");
+  }
+
+  @Test
+  public void assertFails_catchesCancellationException() {
+    StrandsRule standaloneRule = StrandsRule.create();
+    CancellationException thrown =
+        standaloneRule.assertFails(
+            CancellationException.class,
+            () -> {
+              throw new CancellationException("cancelled task");
+            });
+    // The returned exception comes from the cancelled Future, so it is not the instance (nor
+    // message) thrown by the task itself.
+    assertThat(thrown).isNotNull();
+  }
+
+  @Test
+  public void assertFails_whenTaskCancelledAndExpectingDifferentException_failsAssertion() {
+    StrandsRule standaloneRule = StrandsRule.create();
+    AssertionError error =
+        assertThrows(
+            AssertionError.class,
+            () ->
+                standaloneRule.assertFails(
+                    IOException.class,
+                    () -> {
+                      throw new CancellationException("cancelled task");
+                    }));
+    assertThat(error)
+        .hasMessageThat()
+        .contains("Expected Strand to fail with class java.io.IOException; actually was cancelled");
+    assertThat(error).hasCauseThat().isInstanceOf(CancellationException.class);
   }
 }
