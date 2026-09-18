@@ -98,7 +98,7 @@ final class VirtualThreadSupport {
     FACTORY = allowUnsafe ? new UnsafeFactory() : ReflectionFactory.create();
     TASK_EXECUTOR =
         allowUnsafe
-            ? () -> null // Unused by the UnsafeFactory.
+            ? () -> Runnable::run // Unused by the UnsafeFactory.
             : () -> new SequentialExecutor(ForkJoinPool.commonPool());
   }
 
@@ -183,7 +183,7 @@ final class VirtualThreadSupport {
               '-D%s=true' (WARNING: this disables the single-execution guarantee and \
               requires explicit synchronization for shared mutable state).\
               """,
-              System.getProperty(JAVA_VERSION.value()),
+              JAVA_VERSION.value(),
               targetModule,
               cause.getMessage() != null ? cause.getMessage() : cause.getClass().getSimpleName(),
               ALLOW_UNSAFE_CONCURRENT_EXECUTION_PROPERTY),

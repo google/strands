@@ -249,14 +249,13 @@ public final class StrandsRule implements TestRule {
     } catch (ExecutionException e) {
       Throwable cause = e.getCause();
       if (cause != null) {
-        sneakyThrow(cause);
+        throw sneakyThrow(cause);
       }
       throw new AssertionError(
           "Expected Strand to complete successfully. Actually failed with: " + e.getCause(),
           e.getCause());
     } catch (CancellationException e) {
-      sneakyThrow(e);
-      return null;
+      throw sneakyThrow(e);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new AssertionError("Thread was interrupted before Strand completed", e);
@@ -265,7 +264,7 @@ public final class StrandsRule implements TestRule {
 
   // Safe because T is an unchecked generic type parameter used to rethrow without wrapping.
   @SuppressWarnings("unchecked")
-  private static <T extends Throwable> void sneakyThrow(Throwable t) throws T {
+  private static <T extends Throwable> RuntimeException sneakyThrow(Throwable t) throws T {
     throw (T) t;
   }
 
