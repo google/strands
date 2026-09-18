@@ -6,8 +6,15 @@ An `Environment` controls the core behavior of the Strands framework within a
 given JVM. It attaches monitoring hooks via an `EventListener` and dictates how
 a `ContextPropagationOperator` propagates `ThreadLocal` context data.
 
-By default, the `Strands.concurrent(...)` boundaries dynamically search for a
-registered `Environment` using Java's `ServiceLoader`.
+By default, `Strands.concurrent(...)` uses an environment resolved once per JVM
+from the `EnvironmentProvider` instances published to Java's `ServiceLoader`.
+Publishing a provider lets a library configure Strands for an entire application
+just by being on its classpath; if none is published, Strands uses a built-in
+environment uses the default `Environment` behavior. See the
+`EnvironmentProvider` javadoc for how one is chosen when there is more than one.
+
+An `Environment` is never discovered directly, and publishing one as a
+`ServiceLoader` service is an error.
 
 If you need specialized orchestration logic, you can provide an explicit
 `Environment` when starting your root tree:

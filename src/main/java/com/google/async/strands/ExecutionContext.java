@@ -21,12 +21,32 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * A closure of configuration provided by an {@link Environment} provided to {@link Scope} instances
- * and the {@link Strand} instances that it creates.
+ * to control the behavior of the Strands framework.
  */
 @ThreadSafe
 final record ExecutionContext(
-    EventListener listener,
-    TimingMode timingMode,
     VirtualThreadFactory taskThreadFactory,
-    VirtualThreadFactory frameworkThreadFactory,
-    @Nullable ContextPropagationOperator contextPropagationOperator) {}
+    EventListener eventListener,
+    TimingMode timingMode,
+    @Nullable ContextPropagationOperator contextPropagationOperator) {
+
+  /**
+   * Returns a new {@link ExecutionContext} with the given {@link VirtualThreadFactory} for tasks
+   * and the given {@link Environment} for other configuration.
+   */
+  static ExecutionContext create(VirtualThreadFactory taskThreadFactory, Environment environment) {
+    return new ExecutionContext(
+        taskThreadFactory,
+        environment.eventListener(),
+        environment.timingMode().effectiveFor(taskThreadFactory),
+        environment.contextPropagationOperator().orElse(null));
+  }
+
+  /**
+   * Returns a new {@link ExecutionContext} with the given {@link VirtualThreadFactory} for tasks.
+   */
+  ExecutionContext withTaskThreadFactory(VirtualThreadFactory taskThreadFactory) {
+    return new ExecutionContext(
+        taskThreadFactory, this.eventListener, this.timingMode, this.contextPropagationOperator);
+  }
+}

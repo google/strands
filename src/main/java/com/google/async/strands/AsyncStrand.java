@@ -509,7 +509,7 @@ final class AsyncStrand<T extends @Nullable Object> extends AbstractStrand<T> {
 
   @SuppressWarnings("ReferenceEquality") // Intentional identity comparison with EventListener.EMPTY
   private static final long fireStrandCreateEvent(Scope scope) {
-    if (scope.context().listener() == EventListener.EMPTY) {
+    if (scope.context().eventListener() == EventListener.EMPTY) {
       return EventListener.UNTIMED_NANOS;
     }
     long createNanos =
@@ -517,7 +517,7 @@ final class AsyncStrand<T extends @Nullable Object> extends AbstractStrand<T> {
             ? System.nanoTime()
             : EventListener.UNTIMED_NANOS;
     try {
-      scope.listener().strandCreate();
+      scope.context().eventListener().strandCreate();
     } catch (Throwable e) {
       // Reduces the size of this method to make it more likely for the JVM to inline it.
       handleStrandCreateInterruptAndWarn(e);
@@ -542,7 +542,7 @@ final class AsyncStrand<T extends @Nullable Object> extends AbstractStrand<T> {
 
   @SuppressWarnings("ReferenceEquality") // Intentional identity comparison with EventListener.EMPTY
   private final void fireStrandReadyEvent() {
-    if (scope.context().listener() == EventListener.EMPTY) {
+    if (scope.context().eventListener() == EventListener.EMPTY) {
       return;
     }
     boolean shouldTime = scope.context().timingMode() == TimingMode.FULL;
@@ -550,7 +550,7 @@ final class AsyncStrand<T extends @Nullable Object> extends AbstractStrand<T> {
     long delayNanos =
         shouldTime ? readyNanos - lastStateTransitionNanos : EventListener.UNTIMED_NANOS;
     try {
-      scope.listener().strandReady(delayNanos);
+      scope.context().eventListener().strandReady(delayNanos);
     } catch (Throwable e) {
       // Reduces the size of this method to make it more likely for the JVM to inline it.
       handleStrandReadyInterruptAndWarn(e);
@@ -575,7 +575,7 @@ final class AsyncStrand<T extends @Nullable Object> extends AbstractStrand<T> {
 
   @SuppressWarnings("ReferenceEquality") // Intentional identity comparison with EventListener.EMPTY
   private final void fireStrandStartEvent() {
-    if (scope.context().listener() == EventListener.EMPTY) {
+    if (scope.context().eventListener() == EventListener.EMPTY) {
       return;
     }
     boolean shouldTime = scope.context().timingMode() == TimingMode.FULL;
@@ -583,7 +583,7 @@ final class AsyncStrand<T extends @Nullable Object> extends AbstractStrand<T> {
     long delayNanos =
         shouldTime ? startNanos - lastStateTransitionNanos : EventListener.UNTIMED_NANOS;
     try {
-      scope.listener().strandStart(delayNanos);
+      scope.context().eventListener().strandStart(delayNanos);
     } catch (Throwable e) {
       // Reduces the size of this method to make it more likely for the JVM to inline it.
       handleStrandStartInterruptAndWarn(e);
@@ -608,7 +608,7 @@ final class AsyncStrand<T extends @Nullable Object> extends AbstractStrand<T> {
 
   @SuppressWarnings("ReferenceEquality") // Intentional identity comparison with EventListener.EMPTY
   private final void fireStrandCompleteEvent(State state) {
-    if (scope.context().listener() == EventListener.EMPTY) {
+    if (scope.context().eventListener() == EventListener.EMPTY) {
       return;
     }
     boolean shouldTime = scope.context().timingMode() == TimingMode.FULL;
@@ -616,7 +616,7 @@ final class AsyncStrand<T extends @Nullable Object> extends AbstractStrand<T> {
     long runtimeNanos =
         shouldTime ? completeNanos - lastStateTransitionNanos : EventListener.UNTIMED_NANOS;
     try {
-      scope.listener().strandComplete(runtimeNanos, state);
+      scope.context().eventListener().strandComplete(runtimeNanos, state);
     } catch (Throwable e) {
       // Reduces the size of this method to make it more likely for the JVM to inline it.
       handleStrandCompleteInterruptAndWarn(e);

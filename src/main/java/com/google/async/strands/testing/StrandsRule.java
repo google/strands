@@ -122,9 +122,9 @@ public final class StrandsRule implements TestRule {
   @Target({ElementType.METHOD, ElementType.TYPE})
   public @interface InStrand {}
 
-  /** Creates a {@link StrandsRule} using the default {@link DefaultEnvironment}. */
+  /** Creates a {@link StrandsRule} using the default runtime {@link Environment}. */
   public static StrandsRule create() {
-    return new StrandsRule(Environment.DEFAULT);
+    return new StrandsRule(null);
   }
 
   /**
@@ -132,13 +132,13 @@ public final class StrandsRule implements TestRule {
    *
    * @param environment the custom environment to use for managing virtual threads and events
    */
-  public static StrandsRule create(Environment environment) {
+  public static StrandsRule create(@Nullable Environment environment) {
     return new StrandsRule(environment);
   }
 
-  private final Environment environment;
+  private final @Nullable Environment environment;
 
-  StrandsRule(Environment environment) {
+  StrandsRule(@Nullable Environment environment) {
     this.environment = environment;
   }
 
@@ -180,7 +180,26 @@ public final class StrandsRule implements TestRule {
    */
   @CanIgnoreReturnValue
   public <T extends @Nullable Object> T run(Task<T, ? extends Throwable> task) {
-    return runWithTimeout(task, determineDefaultTimeout());
+    return run(environment, task);
+  }
+
+  /**
+   * Executes the specified {@link Task} within a newly created Strands scope, blocking until the
+   * task completes or times out.
+   *
+   * <p>If the task throws an exception, the original exception cause is thrown directly without
+   * wrapping.
+   *
+   * @param <T> the result type of the task
+   * @param env the custom {@link Environment} to run the task with
+   * @param task the asynchronous task to execute
+   * @return the result produced by the task
+   * @throws AssertionError if the task times out or fails unexpectedly
+   */
+  @CanIgnoreReturnValue
+  public <T extends @Nullable Object> T run(
+      @Nullable Environment env, Task<T, ? extends Throwable> task) {
+    return runWithTimeout(env, task, determineDefaultTimeout());
   }
 
   /**
@@ -197,14 +216,32 @@ public final class StrandsRule implements TestRule {
   @CanIgnoreReturnValue
   public <T extends Throwable, R> T assertFails(
       Class<T> exceptionClass, Task<R, ? extends Throwable> task) {
-    return assertFailsWithTimeout(exceptionClass, task, determineDefaultTimeout());
+    return assertFails(environment, exceptionClass, task);
+  }
+
+  /**
+   * Executes the specified {@link Task} within a newly created Strands scope, expecting it to fail
+   * with an exception of the specified type.
+   *
+   * @param <T> the expected exception type
+   * @param <R> the task return type
+   * @param env the custom {@link Environment} to run the task with
+   * @param exceptionClass the class of the expected exception
+   * @param task the task expected to fail
+   * @return the caught exception of type {@code T}
+   * @throws AssertionError if the task completes successfully or fails with a different exception
+   */
+  @CanIgnoreReturnValue
+  public <T extends Throwable, R> T assertFails(
+      @Nullable Environment env, Class<T> exceptionClass, Task<R, ? extends Throwable> task) {
+    return assertFailsWithTimeout(exceptionClass, env, task, determineDefaultTimeout());
   }
 
   @CanIgnoreReturnValue
-  private <T extends @Nullable Object> T runWithTimeout(
-      Task<T, ? extends Throwable> task, Duration timeout) {
+  private static <T extends @Nullable Object> T runWithTimeout(
+      @Nullable Environment env, Task<T, ? extends Throwable> task, Duration timeout) {
     try {
-      ListenableFuture<T> resultFuture = Strands.concurrent(environment, task);
+      ListenableFuture<T> resultFuture = Strands.concurrent(env, task);
       return resultFuture.get(timeout.toMillis(), MILLISECONDS);
     } catch (TimeoutException e) {
       throw new AssertionError("Future did not complete within " + timeout.toMillis() + "ms", e);
@@ -228,10 +265,13 @@ public final class StrandsRule implements TestRule {
     throw (T) t;
   }
 
-  private <T extends Throwable, R> T assertFailsWithTimeout(
-      Class<T> exceptionClass, Task<R, ? extends Throwable> task, Duration timeout) {
+  private static <T extends Throwable, R> T assertFailsWithTimeout(
+      Class<T> exceptionClass,
+      @Nullable Environment env,
+      Task<R, ? extends Throwable> task,
+      Duration timeout) {
     try {
-      ListenableFuture<R> resultFuture = Strands.concurrent(environment, task);
+      ListenableFuture<R> resultFuture = Strands.concurrent(env, task);
       resultFuture.get(timeout.toMillis(), MILLISECONDS);
       throw new AssertionError(
           String.format(

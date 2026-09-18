@@ -30,20 +30,17 @@ import java.util.Optional;
  * Strands with; everything within that graph will use the provided environment.
  *
  * <p>If {@link Strands#concurrent} is not provided an explicit environment (the common use case),
- * it will attempt to load one from the surrounding runtime environment using Java's {@link
- * java.util.ServiceLoader}. This allows applications to customize strands globally without
- * call-sites having to be aware of the desired configuration.
+ * it uses the default runtime environment, resolved once per JVM from the {@link
+ * EnvironmentProvider}s published to Java's {@link java.util.ServiceLoader}. This lets an
+ * application, or a library it depends on, customize Strands globally without call sites having to
+ * be aware of the configuration. See {@link EnvironmentProvider} for how one is chosen, and for
+ * what happens when the classpath does not settle the question.
+ *
+ * <p>Note that an {@code Environment} is never discovered directly; it is always reached through an
+ * {@link EnvironmentProvider}.
  */
 @ThreadSafe
 public interface Environment {
-
-  /**
-   * The default environment for Strands.
-   *
-   * <p>This environment uses the default JDK capabilities and does not require any external
-   * dependencies.
-   */
-  public static final Environment DEFAULT = new Environment() {};
 
   /**
    * Returns the {@link EventListener} that should receive monitoring events.
@@ -74,9 +71,9 @@ public interface Environment {
    * new thread. Therefore, it's expected that any capture work happens in {@code apply}. This can
    * be used to propagate {@link java.lang.ThreadLocal} values to these new threads.
    *
-   * <p>Note: This function will be called every time a new thread context is created - which may be
-   * very frequent. This should avoid performing expensive operations or allocating a new {@code
-   * ContextPropagationOperator} if possible.
+   * <p>Note: This function is called once per {@link Strands#concurrent} call, when the scope's
+   * configuration is resolved; the returned operator is then reused for every thread that scope
+   * starts.
    */
   default Optional<ContextPropagationOperator> contextPropagationOperator() {
     return Optional.empty();

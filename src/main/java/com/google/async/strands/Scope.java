@@ -48,6 +48,11 @@ final class Scope implements AutoCloseable {
    */
   private static final ScopedValue<Scope> CURRENT_SCOPE = ScopedValue.newInstance();
 
+  /** Returns {@code true} if a Strands scope is currently bound to the current thread. */
+  static boolean isBound() {
+    return CURRENT_SCOPE.isBound();
+  }
+
   /** Returns the current {@link Scope} for the current thread. */
   static Scope current() {
     if (!CURRENT_SCOPE.isBound()) {
@@ -98,11 +103,6 @@ final class Scope implements AutoCloseable {
   /** Returns the {@link ExecutionContext} for this scope. */
   ExecutionContext context() {
     return context;
-  }
-
-  /** Returns the {@link EventListener} for this scope. */
-  EventListener listener() {
-    return context.listener();
   }
 
   @Override
@@ -182,7 +182,7 @@ final class Scope implements AutoCloseable {
           }
         };
     try {
-      thread = context.frameworkThreadFactory().newVirtualThread(scopedTask);
+      thread = VirtualThreadFactory.framework().newVirtualThread(scopedTask);
       flock.register(thread);
       thread.start();
     } catch (Throwable t) {
@@ -202,13 +202,13 @@ final class Scope implements AutoCloseable {
 
   @SuppressWarnings("ReferenceEquality") // Intentional identity comparison with EventListener.EMPTY
   private final long fireScopeOpenEvent() {
-    if (context.listener() == EventListener.EMPTY) {
+    if (context.eventListener() == EventListener.EMPTY) {
       return EventListener.UNTIMED_NANOS;
     }
     long openNanos =
         context.timingMode() == TimingMode.FULL ? System.nanoTime() : EventListener.UNTIMED_NANOS;
     try {
-      context.listener().scopeOpen();
+      context.eventListener().scopeOpen();
     } catch (Throwable e) {
       // Reduces the size of this method to make it more likely for the JVM to inline it.
       handleScopeOpenInterruptAndWarn(e);
@@ -233,7 +233,7 @@ final class Scope implements AutoCloseable {
 
   @SuppressWarnings("ReferenceEquality") // Intentional identity comparison with EventListener.EMPTY
   private final void fireScopeCloseEvent(long openNanos) {
-    if (context.listener() == EventListener.EMPTY) {
+    if (context.eventListener() == EventListener.EMPTY) {
       return;
     }
     long durationNanos =
@@ -241,7 +241,7 @@ final class Scope implements AutoCloseable {
             ? System.nanoTime() - openNanos
             : EventListener.UNTIMED_NANOS;
     try {
-      context.listener().scopeClose(durationNanos);
+      context.eventListener().scopeClose(durationNanos);
     } catch (Throwable e) {
       // Reduces the size of this method to make it more likely for the JVM to inline it.
       handleScopeCloseInterruptAndWarn(e);

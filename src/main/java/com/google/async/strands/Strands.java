@@ -18,17 +18,13 @@ package com.google.async.strands;
 
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static java.util.Objects.requireNonNull;
-import static java.util.stream.Collectors.joining;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
-import java.util.ServiceLoader;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.Future;
-import java.util.stream.Collectors;
 import java.util.stream.Gatherer;
 import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
@@ -36,51 +32,9 @@ import org.jspecify.annotations.Nullable;
 /** Collection of methods for launching new nested scopes of Strands. */
 public final class Strands {
 
-  private static volatile @Nullable Environment runtimeEnvironment;
-
-  static Environment getOrLoadRuntimeEnvironment() {
-    if (runtimeEnvironment == null) {
-      synchronized (Strands.class) {
-        if (runtimeEnvironment == null) {
-          runtimeEnvironment = loadRuntimeEnvironment();
-        }
-      }
-    }
-    return runtimeEnvironment;
-  }
-
-  // WARNING: this is executing under a lock on `Strands.class`
-  private static Environment loadRuntimeEnvironment() {
-    ServiceLoader<Environment> loader =
-        ServiceLoader.load(Environment.class, Environment.class.getClassLoader());
-    List<ServiceLoader.Provider<Environment>> foundEnvironments =
-        loader.stream().collect(Collectors.toCollection(ArrayList::new));
-    if (foundEnvironments.isEmpty()) {
-      // No custom environment found, use the default.
-      return Environment.DEFAULT;
-    }
-    if (foundEnvironments.size() > 1) {
-      String foundEnvironmentTypes =
-          foundEnvironments.stream()
-              .map(
-                  p -> {
-                    String name = p.type().getCanonicalName();
-                    return name == null ? "unknown" : name;
-                  })
-              .collect(joining(","));
-      throw new IllegalStateException(
-          String.format(
-              "Bad Usage: Multiple Environments provided by the local runtime; Strands"
-                  + " cannot pick between them. Ensure only one is reachable on the classpath: %s",
-              foundEnvironmentTypes));
-    }
-    return foundEnvironments.get(0).get();
-  }
-
-  private static Environment findEnvironment() {
-    // To implement: If we're running in a call to `concurrent` already, prefer that instead of
-    // loading one
-    return getOrLoadRuntimeEnvironment();
+  /** Returns {@code true} if the calling thread is currently executing within a Strands scope. */
+  public static boolean inScope() {
+    return Scope.isBound();
   }
 
   /**
@@ -201,8 +155,8 @@ public final class Strands {
    * independent tree.
    *
    * <p>This method uses an implicit {@link Environment}: if the caller already has one active, it
-   * uses that, otherwise it will try to load one using the JDK ServiceLoader. See {@link
-   * Environment} for more details.
+   * uses that, otherwise it uses the default runtime environment. See {@link Environment} for how
+   * that default is resolved.
    *
    * @param task the code to execute in a new virtual thread, starting a new tree of virtual threads
    *     that shares a single-execution guarantee. The task will be executed concurrently to the
@@ -213,7 +167,7 @@ public final class Strands {
    */
   public static <T extends @Nullable Object> ListenableFuture<T> concurrent(
       Task<T, ? extends Throwable> task) {
-    return concurrent(findEnvironment(), task);
+    return concurrent(null, task);
   }
 
   /**
@@ -247,18 +201,17 @@ public final class Strands {
    */
   @SuppressWarnings("Interruption") // Intentionally interrupting the virtual thread.
   public static <T extends @Nullable Object> ListenableFuture<T> concurrent(
-      Environment environment, Task<T, ? extends Throwable> task) {
+      @Nullable Environment environment, Task<T, ? extends Throwable> task) {
     VirtualThreadFactory virtualThreadFactory = VirtualThreadFactory.task();
-    ContextPropagationOperator contextPropagation =
-        environment.contextPropagationOperator().orElse(null);
 
     ExecutionContext context =
-        new ExecutionContext(
-            environment.eventListener(),
-            environment.timingMode().effectiveFor(virtualThreadFactory),
-            virtualThreadFactory,
-            VirtualThreadFactory.framework(),
-            contextPropagation);
+        switch (environment) {
+          case null ->
+              Scope.isBound()
+                  ? Scope.current().context().withTaskThreadFactory(virtualThreadFactory)
+                  : ExecutionContext.create(virtualThreadFactory, DefaultEnvironment.get());
+          default -> ExecutionContext.create(virtualThreadFactory, environment);
+        };
 
     SettableFuture<T> result = SettableFuture.create();
     Runnable runnable =
@@ -277,8 +230,8 @@ public final class Strands {
             }
           }
         };
-    if (contextPropagation != null) {
-      runnable = contextPropagation.apply(runnable);
+    if (context.contextPropagationOperator() != null) {
+      runnable = context.contextPropagationOperator().apply(runnable);
     }
 
     // Create a new virtual thread

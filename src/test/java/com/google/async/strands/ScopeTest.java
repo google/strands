@@ -254,4 +254,19 @@ public class ScopeTest {
     interruptLatch.await();
     assertThat(interruptLatch.getCount()).isEqualTo(0);
   }
+
+  @Test
+  public void inScope_outsideScope_returnsFalse() {
+    assertThat(Strands.inScope()).isFalse();
+  }
+
+  @Test
+  public void inScope_insideScope_returnsTrue() {
+    var _ =
+        strands.run(
+            () -> {
+              assertThat(Strands.inScope()).isTrue();
+              return null;
+            });
+  }
 }
