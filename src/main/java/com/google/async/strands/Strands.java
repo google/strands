@@ -19,10 +19,9 @@ package com.google.async.strands;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static java.util.Objects.requireNonNull;
 
+import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.Future;
 import java.util.stream.Gatherer;
@@ -257,20 +256,10 @@ public final class Strands {
   }
 
   /** Converts an {@link Iterable} of {@link Strand} to an array of {@link Strand}. */
+  @SuppressWarnings("unchecked") // Cast is safe.
   private static final <T extends @Nullable Object> Strand<T>[] toArray(
       Iterable<Strand<T>> iterable) {
-    Collection<Strand<T>> collection;
-    if (iterable instanceof Collection<Strand<T>>) {
-      collection = (Collection<Strand<T>>) iterable;
-    } else {
-      collection = new ArrayList<>();
-      for (Strand<T> element : iterable) {
-        collection.add(element);
-      }
-    }
-    @SuppressWarnings("unchecked") // Cast is safe.
-    Strand<T>[] array = (Strand<T>[]) collection.toArray(new Strand<?>[collection.size()]);
-    return array;
+    return (Strand<T>[]) Iterables.toArray(iterable, Strand.class);
   }
 
   private Strands() {}

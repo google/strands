@@ -16,6 +16,8 @@
 
 package com.google.async.strands;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
 import static java.util.Arrays.stream;
 import static java.util.Objects.requireNonNull;
 
@@ -42,14 +44,12 @@ public final class BoundedComposer<T extends @Nullable Object> {
    * @throws IllegalArgumentException if any {@code candidates} do not belong to the {@code scope}
    */
   BoundedComposer(Scope scope, Strand<T>... candidates) {
-    if (candidates.length == 0) {
-      throw new IllegalArgumentException("At least one candidate must be provided");
-    }
+    checkArgument(candidates.length > 0, "At least one candidate must be provided");
     for (int i = 0; i < candidates.length; i++) {
-      if (((AbstractStrand<T>) candidates[i]).scope() != scope) {
-        throw new IllegalArgumentException(
-            String.format("candidates[%d] does not belong to the same scope as the composer", i));
-      }
+      checkArgument(
+          ((AbstractStrand<T>) candidates[i]).scope() == scope,
+          "candidates[%s] does not belong to the same scope as the composer",
+          i);
     }
     this.scope = scope;
     this.candidates = candidates.clone();
@@ -74,12 +74,9 @@ public final class BoundedComposer<T extends @Nullable Object> {
    *     terminal method (e.g. {@link #firstSuccessful()})
    */
   public final Strand<T> firstSuccessful() {
-    if (consumed) {
-      throw new IllegalStateException("this composer has already been consumed");
-    }
-    if (Scope.current() != scope) {
-      throw new IllegalStateException("called from outside the scope that created this composer");
-    }
+    checkState(!consumed, "this composer has already been consumed");
+    checkState(
+        Scope.current() == scope, "called from outside the scope that created this composer");
     consumed = true;
     for (Strand<T> candidate : candidates) {
       Result<T> result = ((AbstractStrand<T>) candidate).result();
@@ -110,12 +107,9 @@ public final class BoundedComposer<T extends @Nullable Object> {
    *     terminal method (e.g. {@link #firstSuccessful()})
    */
   public final Strand<Stream<T>> allSuccessful() {
-    if (consumed) {
-      throw new IllegalStateException("this composer has already been consumed");
-    }
-    if (Scope.current() != scope) {
-      throw new IllegalStateException("called from outside the scope that created this composer");
-    }
+    checkState(!consumed, "this composer has already been consumed");
+    checkState(
+        Scope.current() == scope, "called from outside the scope that created this composer");
     consumed = true;
     boolean complete = true;
     for (Strand<T> candidate : candidates) {
@@ -156,12 +150,9 @@ public final class BoundedComposer<T extends @Nullable Object> {
    *     terminal method (e.g. {@link #firstSuccessful()})
    */
   public final Strand<Stream<Result<T>>> allCompleted() {
-    if (consumed) {
-      throw new IllegalStateException("this composer has already been consumed");
-    }
-    if (Scope.current() != scope) {
-      throw new IllegalStateException("called from outside the scope that created this composer");
-    }
+    checkState(!consumed, "this composer has already been consumed");
+    checkState(
+        Scope.current() == scope, "called from outside the scope that created this composer");
     consumed = true;
     boolean complete = true;
     for (Strand<T> candidate : candidates) {

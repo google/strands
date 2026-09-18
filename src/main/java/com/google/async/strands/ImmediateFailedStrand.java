@@ -16,6 +16,8 @@
 
 package com.google.async.strands;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import java.time.Duration;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeoutException;
@@ -31,12 +33,13 @@ final class ImmediateFailedStrand<T extends @Nullable Object> extends AbstractSt
   ImmediateFailedStrand(Scope scope, Throwable failure) {
     this.scope = scope;
     this.failure = failure;
-    switch (failure) {
-      case TimeoutException e -> state = State.TIMEOUT;
-      case CancellationException e -> state = State.CANCELLED;
-      case InterruptedException e -> state = State.INTERRUPTED;
-      default -> state = State.FAILED;
-    }
+    state =
+        switch (failure) {
+          case TimeoutException e -> State.TIMEOUT;
+          case CancellationException e -> State.CANCELLED;
+          case InterruptedException e -> State.INTERRUPTED;
+          default -> State.FAILED;
+        };
   }
 
   /** Returns the current state of this Strand. */
@@ -58,9 +61,7 @@ final class ImmediateFailedStrand<T extends @Nullable Object> extends AbstractSt
    */
   @Override
   public T await(Duration unused) {
-    if (scope != Scope.current()) {
-      throw new IllegalStateException("Strand cannot be awaited from outside its scope.");
-    }
+    checkState(scope == Scope.current(), "Strand cannot be awaited from outside its scope.");
     throw FailedTaskException.wrap(failure);
   }
 

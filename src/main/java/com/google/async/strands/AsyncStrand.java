@@ -16,6 +16,8 @@
 
 package com.google.async.strands;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
 import static java.util.Objects.requireNonNull;
 import static java.util.concurrent.TimeUnit.MINUTES;
 
@@ -175,12 +177,8 @@ final class AsyncStrand<T extends @Nullable Object> extends AbstractStrand<T> {
    */
   @Override
   public final T await(Duration timeout) throws InterruptedException {
-    if (timeout.isNegative()) {
-      throw new IllegalArgumentException("timeout must be non-negative: " + timeout);
-    }
-    if (Scope.current() != scope) {
-      throw new IllegalStateException("Strand cannot be awaited from outside its scope.");
-    }
+    checkArgument(!timeout.isNegative(), "timeout must be non-negative: %s", timeout);
+    checkState(Scope.current() == scope, "Strand cannot be awaited from outside its scope.");
     switch (state()) {
       case CREATED ->
           throw new StrandsInternalStateException(

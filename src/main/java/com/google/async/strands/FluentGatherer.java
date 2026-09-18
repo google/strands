@@ -16,6 +16,9 @@
 
 package com.google.async.strands;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
+
 import com.google.async.strands.Gatherers.FailFastFlattenPusher;
 import com.google.async.strands.Gatherers.FailFastIdentityPusher;
 import com.google.async.strands.Gatherers.ResultFlattenPusher;
@@ -60,9 +63,7 @@ public final class FluentGatherer {
    * <p>Defaults to {@code 8}.
    */
   public FluentGatherer buffer(int size) {
-    if (size < 1) {
-      throw new IllegalArgumentException("'size' must be positive");
-    }
+    checkArgument(size >= 1, "size must be positive");
     this.bufferSize = size;
     return this;
   }
@@ -82,9 +83,7 @@ public final class FluentGatherer {
    * <p>Defaults to {@code 8}.
    */
   public FluentGatherer concurrency(int limit) {
-    if (limit < 1) {
-      throw new IllegalArgumentException("'limit' must be positive");
-    }
+    checkArgument(limit >= 1, "limit must be positive");
     this.concurrencyLimit = limit;
     return this;
   }
@@ -110,9 +109,7 @@ public final class FluentGatherer {
    * <p>Defaults to {@code Duration.ZERO}, which means no timeout.
    */
   public FluentGatherer timeout(Duration timeout) {
-    if (timeout.isNegative()) {
-      throw new IllegalArgumentException("'timeout' must be non-negative");
-    }
+    checkArgument(!timeout.isNegative(), "timeout must be non-negative");
     this.timeout = timeout;
     return this;
   }
@@ -183,21 +180,14 @@ public final class FluentGatherer {
   static record Options(
       Scope scope, int bufferSize, int concurrencyLimit, Duration timeout, boolean ordered) {
     Options {
-      if (bufferSize < 1) {
-        throw new IllegalArgumentException("'bufferSize' must be positive");
-      }
-      if (concurrencyLimit < 1) {
-        throw new IllegalArgumentException("'concurrencyLimit' must be positive");
-      }
-      if (timeout.isNegative()) {
-        throw new IllegalArgumentException("'timeout' must be non-negative");
-      }
-      if (concurrencyLimit > bufferSize) {
-        throw new IllegalStateException(
-            String.format(
-                "concurrency limit (%d) cannot be greater than buffer size (%d)",
-                concurrencyLimit, bufferSize));
-      }
+      checkArgument(bufferSize >= 1, "buffer size must be positive");
+      checkArgument(concurrencyLimit >= 1, "concurrency limit must be positive");
+      checkArgument(!timeout.isNegative(), "timeout must be non-negative");
+      checkState(
+          concurrencyLimit <= bufferSize,
+          "concurrency limit (%s) cannot be greater than buffer size (%s)",
+          concurrencyLimit,
+          bufferSize);
     }
   }
 }

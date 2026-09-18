@@ -17,6 +17,7 @@
 package com.google.async.strands;
 
 import static com.google.common.base.StandardSystemProperty.JAVA_VERSION;
+import static com.google.common.base.Throwables.throwIfUnchecked;
 
 import com.google.common.flogger.GoogleLogger;
 import java.lang.invoke.MethodHandle;
@@ -229,12 +230,7 @@ final class VirtualThreadSupport {
       try {
         return (Thread.Builder.OfVirtual) handle.invokeExact(scheduler);
       } catch (Throwable t) {
-        if (t instanceof RuntimeException runtimeException) {
-          throw runtimeException;
-        }
-        if (t instanceof Error error) {
-          throw error;
-        }
+        throwIfUnchecked(t);
         throw new IllegalStateException(t);
       }
     }

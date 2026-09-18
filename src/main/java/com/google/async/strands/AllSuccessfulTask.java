@@ -16,6 +16,7 @@
 
 package com.google.async.strands;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Arrays.stream;
 import static java.util.Objects.requireNonNull;
 
@@ -51,9 +52,7 @@ final class AllSuccessfulTask<T extends @Nullable Object>
   private volatile @Nullable Throwable failure;
 
   AllSuccessfulTask(Strand<T>... elements) {
-    if (elements.length == 0) {
-      throw new IllegalArgumentException("At least one element must be provided");
-    }
+    checkArgument(elements.length > 0, "At least one element must be provided");
     this.elements = elements;
   }
 

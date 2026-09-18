@@ -16,6 +16,7 @@
 
 package com.google.async.strands;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.System.identityHashCode;
 
 import com.google.common.flogger.GoogleLogger;
@@ -64,11 +65,8 @@ final class SequentialExecutor implements Executor, Runnable {
    * execution of tasks will stop until a call to this method is made.
    */
   @Override
-  @SuppressWarnings("PreferPreconditions") // Minimizing dependencies.
   public void execute(Runnable task) {
-    if (task == null) {
-      throw new IllegalArgumentException("task must not be null");
-    }
+    checkNotNull(task);
     queue.add(task);
     if (wip.getAndIncrement() == 0) {
       try {

@@ -16,6 +16,7 @@
 
 package com.google.async.strands;
 
+import static com.google.common.base.Preconditions.checkState;
 import static java.util.concurrent.TimeUnit.MINUTES;
 
 import com.google.common.flogger.GoogleLogger;
@@ -55,10 +56,9 @@ final class Scope implements AutoCloseable {
 
   /** Returns the current {@link Scope} for the current thread. */
   static Scope current() {
-    if (!CURRENT_SCOPE.isBound()) {
-      throw new IllegalStateException(
-          "No Strands scope available, did you call this from outside Strands.concurrent()?");
-    }
+    checkState(
+        CURRENT_SCOPE.isBound(),
+        "No Strands scope available, did you call this from outside Strands.concurrent()?");
     return CURRENT_SCOPE.get();
   }
 

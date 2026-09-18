@@ -16,6 +16,7 @@
 
 package com.google.async.strands;
 
+import static com.google.common.base.Preconditions.checkState;
 import static java.util.Objects.requireNonNull;
 
 import com.google.errorprone.annotations.ThreadSafe;
@@ -66,14 +67,12 @@ final class VirtualThreadFactory {
    */
   final synchronized Thread newVirtualThread(Runnable runnable) {
     Thread thread = requireNonNull(threadFactory.newThread(runnable));
-    if (!thread.isVirtual()) {
-      throw new IllegalStateException(
-          "VirtualThreadFactory attempted to provide a non-virtual (platform) thread");
-    }
-    if (thread.isAlive()) {
-      throw new IllegalStateException(
-          "VirtualThreadFactory attempted to provide a thread that is already started");
-    }
+    checkState(
+        thread.isVirtual(),
+        "VirtualThreadFactory attempted to provide a non-virtual (platform) thread");
+    checkState(
+        !thread.isAlive(),
+        "VirtualThreadFactory attempted to provide a thread that is already started");
     return thread;
   }
 }

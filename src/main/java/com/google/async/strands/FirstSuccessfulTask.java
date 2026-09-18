@@ -16,6 +16,7 @@
 
 package com.google.async.strands;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
 import java.lang.invoke.MethodHandles;
@@ -53,9 +54,7 @@ final class FirstSuccessfulTask<T extends @Nullable Object>
   private volatile @Nullable Throwable failure;
 
   FirstSuccessfulTask(Strand<T>... candidates) {
-    if (candidates.length == 0) {
-      throw new IllegalArgumentException("At least one candidate must be provided");
-    }
+    checkArgument(candidates.length > 0, "At least one candidate must be provided");
     this.candidates = candidates;
   }
 

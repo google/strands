@@ -104,9 +104,9 @@ public class SequentialExecutorTest {
   }
 
   @Test
-  public void execute_nullTask_throwsIllegalArgumentException() {
+  public void execute_nullTask_throwsNullPointerException() {
     SequentialExecutor executor = new SequentialExecutor(ForkJoinPool.commonPool());
-    assertThrows(IllegalArgumentException.class, () -> executor.execute(null));
+    assertThrows(NullPointerException.class, () -> executor.execute(null));
   }
 
   @Test

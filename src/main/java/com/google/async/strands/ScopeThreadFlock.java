@@ -16,13 +16,15 @@
 
 package com.google.async.strands;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 import com.google.errorprone.annotations.ThreadSafe;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.time.Duration;
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeoutException;
@@ -89,9 +91,7 @@ final class ScopeThreadFlock implements AutoCloseable {
 
   /** Registers a thread with this flock. */
   void register(Thread thread) {
-    if (shutdown || closed) {
-      throw new IllegalStateException("Flock is shutdown or closed");
-    }
+    checkState(!shutdown && !closed, "Flock is shutdown or closed");
     THREAD_COUNT_HANDLE.getAndAdd(this, 1);
     registeredThreads.add(thread);
     if (shutdown || closed) {
@@ -135,10 +135,8 @@ final class ScopeThreadFlock implements AutoCloseable {
 
   /** Waits up to a timeout for all threads in this flock to finish executing. */
   public boolean awaitAll(Duration timeout) throws InterruptedException, TimeoutException {
-    Objects.requireNonNull(timeout);
-    if (timeout.isNegative()) {
-      throw new IllegalArgumentException("timeout must be non-negative: " + timeout);
-    }
+    checkNotNull(timeout);
+    checkArgument(!timeout.isNegative(), "timeout must be non-negative: %s", timeout);
     ensureOwner();
 
     if (getAndSetPermit(false)) {
@@ -221,9 +219,7 @@ final class ScopeThreadFlock implements AutoCloseable {
   }
 
   private void ensureOwner() {
-    if (Thread.currentThread() != owner) {
-      throw new IllegalStateException("Current thread is not the flock owner");
-    }
+    checkState(Thread.currentThread() == owner, "Current thread is not the flock owner");
   }
 
   private void clearPermit() {

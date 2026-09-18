@@ -16,13 +16,14 @@
 
 package com.google.async.strands;
 
+import static com.google.common.base.Strings.isNullOrEmpty;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.joining;
 
 import com.google.async.strands.EnvironmentProvider.Priority;
 import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ListMultimap;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.ServiceConfigurationError;
@@ -92,7 +93,7 @@ final class DefaultEnvironment {
    * @param failure why the sweep stopped early, or null if it completed
    */
   private record Discovery(
-      List<EnvironmentProvider> providers, @Nullable ServiceConfigurationError failure) {}
+      ImmutableList<EnvironmentProvider> providers, @Nullable ServiceConfigurationError failure) {}
 
   /**
    * Defers resolution until the first call to {@link #get}.
@@ -156,8 +157,8 @@ final class DefaultEnvironment {
       List<EnvironmentProvider> discovered,
       @Nullable ServiceConfigurationError discoveryFailure,
       @Nullable String preferred) {
-    List<EnvironmentProvider> candidates = new ArrayList<>(discovered);
-    candidates.sort(BY_PRECEDENCE);
+    ImmutableList<EnvironmentProvider> candidates =
+        ImmutableList.sortedCopyOf(BY_PRECEDENCE, discovered);
 
     if (discoveryFailure != null) {
       throw new IllegalStateException(
@@ -167,7 +168,7 @@ final class DefaultEnvironment {
               candidates.size(), names(candidates)),
           discoveryFailure);
     }
-    if (preferred != null && !preferred.isEmpty()) {
+    if (!isNullOrEmpty(preferred)) {
       return selectPreferred(candidates, preferred);
     }
     if (candidates.isEmpty()) {
@@ -235,17 +236,15 @@ final class DefaultEnvironment {
    * resuming a failed {@code hasNext()} would spin forever.
    */
   private static Discovery discover() {
-    List<EnvironmentProvider> providers = new ArrayList<>();
+    ImmutableList.Builder<EnvironmentProvider> providers = ImmutableList.builder();
     try {
-      for (EnvironmentProvider provider :
+      providers.addAll(
           ServiceLoader.load(
-              EnvironmentProvider.class, EnvironmentProvider.class.getClassLoader())) {
-        providers.add(provider);
-      }
+              EnvironmentProvider.class, EnvironmentProvider.class.getClassLoader()));
     } catch (ServiceConfigurationError e) {
-      return new Discovery(providers, e);
+      return new Discovery(providers.build(), e);
     }
-    return new Discovery(providers, null);
+    return new Discovery(providers.build(), null);
   }
 
   /**

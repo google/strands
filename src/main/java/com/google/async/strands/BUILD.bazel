@@ -20,9 +20,6 @@ java_library(
     name = "strands",
     srcs = glob(["*.java"]),
     add_opens = ["java.base/java.lang"],
-    javacopts = [
-        "-Xep:PreferPreconditions:OFF",  # Minimize dependencies.
-    ],
     deps = [
         "@maven//:com_google_errorprone_error_prone_annotations",
         "@maven//:com_google_flogger_flogger",

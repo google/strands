@@ -16,6 +16,8 @@
 
 package com.google.async.strands;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import java.time.Duration;
 import org.jspecify.annotations.Nullable;
 
@@ -49,9 +51,7 @@ final class ImmediateSuccessfulStrand<T extends @Nullable Object> extends Abstra
    */
   @Override
   public T await(Duration unused) {
-    if (scope != Scope.current()) {
-      throw new IllegalStateException("Strand cannot be awaited from outside its scope.");
-    }
+    checkState(scope == Scope.current(), "Strand cannot be awaited from outside its scope.");
     return value;
   }
 
