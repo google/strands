@@ -12,13 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-load("@rules_java//java:defs.bzl", "java_library", "java_test")
+load("@rules_java//java:defs.bzl", "java_test")
 load("//:testing.bzl", "junit4_test_suites")
 
 package(default_testonly = True)
 
-java_library(
-    name = "tests",
+junit4_test_suites(
+    name = "gen_tests",
     srcs = glob(
         ["*.java"],
         exclude = [
@@ -26,6 +26,12 @@ java_library(
             "UnsafeConcurrentExecutionTest.java",
         ],
     ),
+    data = ["@maven//:org_mockito_mockito_core"],
+    jvm_flags = [
+        "'-javaagent:$(location",
+        "@maven//:org_mockito_mockito_core)'",
+    ],
+    sizes = ["small"],
     deps = [
         "//src/main/java/com/google/async/strands",
         "//src/main/java/com/google/async/strands:testing",
@@ -36,13 +42,6 @@ java_library(
         "@maven//:junit_junit",
         "@maven//:org_mockito_mockito_core",
     ],
-)
-
-junit4_test_suites(
-    name = "gen_tests",
-    sizes = ["small"],
-    src_dir = "src/test/java",
-    deps = [":tests"],
 )
 
 java_test(

@@ -78,13 +78,13 @@ final class AsyncStrand<T extends @Nullable Object> extends AbstractStrand<T> {
   }
 
   private final Scope scope;
-  @ThreadSafe.Suppress // VarHandle guarded.
+  @SuppressWarnings("ThreadSafe") // VarHandle guarded.
   private volatile Snapshot<T> snapshot = new Snapshot<>(State.CREATED, null);
-  @ThreadSafe.Suppress // VarHandle guarded.
+  @SuppressWarnings("ThreadSafe") // VarHandle guarded.
   private volatile @Nullable Thread thread;
-  @ThreadSafe.Suppress // VarHandle guarded.
+  @SuppressWarnings("ThreadSafe") // VarHandle guarded.
   private volatile @Nullable ThreadCallback callback;
-  @ThreadSafe.Suppress // Guarded by state check.
+  @SuppressWarnings("ThreadSafe") // Guarded by state check.
   private final CancellableTask<T, ? extends Throwable> task;
 
   // Relative time for monitoring; each state transition takes reports the delta between this and
@@ -94,7 +94,7 @@ final class AsyncStrand<T extends @Nullable Object> extends AbstractStrand<T> {
   // When state is READY, this is the system time the Strand was allocated a thread and it started.
   // When state is RUNNING, this is the system time the Strand started executing its task.
   // When state is SUCCEEDED, FAILED, CANCELLED, or TIMEOUT, this value should be ignored.
-  @ThreadSafe.Suppress // Guarded by state check.
+  @SuppressWarnings("ThreadSafe") // Guarded by state check.
   private volatile long lastStateTransitionNanos;
 
   public AsyncStrand(Scope scope, Task<T, ? extends Throwable> task) {

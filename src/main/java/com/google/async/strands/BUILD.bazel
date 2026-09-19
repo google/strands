@@ -14,7 +14,7 @@
 
 load("@rules_java//java:defs.bzl", "java_library")
 
-package(default_visibility = ["//:__pkg__"])
+package(default_visibility = ["//:__subpackages__"])
 
 java_library(
     name = "strands",
@@ -23,6 +23,7 @@ java_library(
     deps = [
         "@maven//:com_google_errorprone_error_prone_annotations",
         "@maven//:com_google_flogger_flogger",
+        "@maven//:com_google_flogger_google_extensions",
         "@maven//:com_google_guava_guava",
         "@maven//:org_jspecify_jspecify",
     ],
@@ -34,6 +35,7 @@ java_library(
     srcs = glob(["testing/*.java"]),
     deps = [
         ":strands",
+        "@maven//:com_google_errorprone_error_prone_annotations",
         "@maven//:com_google_guava_guava",
         "@maven//:junit_junit",
         "@maven//:org_jspecify_jspecify",

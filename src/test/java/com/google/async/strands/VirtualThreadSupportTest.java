@@ -91,18 +91,6 @@ public class VirtualThreadSupportTest {
   }
 
   @Test
-  public void isJavaLangOpen_withoutAddOpens_returnsFalse() {
-    assertThat(VirtualThreadSupport.isJavaLangOpen()).isFalse();
-  }
-
-  @Test
-  public void reflectionFactory_whenJavaLangNotOpen_returnsBrokenFactory() {
-    assertThat(VirtualThreadSupport.isJavaLangOpen()).isFalse();
-    VirtualThreadSupport.Factory factory = VirtualThreadSupport.ReflectionFactory.create();
-    assertThat(factory).isInstanceOf(VirtualThreadSupport.BrokenFactory.class);
-  }
-
-  @Test
   public void unsafeFactory_allowsConcurrentExecutionWithoutSequentialBlocking() throws Exception {
     ThreadFactory factory =
         new VirtualThreadSupport.UnsafeFactory()

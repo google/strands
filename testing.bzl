@@ -49,19 +49,20 @@ _gen_suite = rule(
 def junit4_test_suites(
         name,
         sizes,
+        srcs,
         deps,
-        src_dir = None,  # @unused.
-        shard_count = None,  # @unused.
-        srcs = None):
+        data = [],
+        **kwargs):  # @unused.
     """Generates tests for test file in srcs ending in "Test.java"
 
     Args:
       name: name of the test suite to generate
       sizes: list of test sizes (e.g. ["small"])
+      srcs: list of test source files
       deps: list of runtime dependencies required to run the test
-      src_dir: not used, exists only for compatibility with Google3 macro
-      shard_count: not used, exists only for compatibility with Google3 macro
-      srcs: list of test source files, uses 'glob(["**/*Test.java"])' if not specified
+      data: list of data dependencies required to run the test
+      **kwargs: Additional keyword arguments to pass through to the underlying
+        `java_test` rule.
     """
 
     package_name = native.package_name()
@@ -71,13 +72,13 @@ def junit4_test_suites(
     if "/test/java/" in package_name:
         package_name = package_name.rpartition("/test/java/")[2]
 
-    test_files = srcs or native.glob(["**/*Test.java"])
+    test_files = srcs
     test_classes = []
     for src in test_files:
         test_name = src.replace(".java", "")
         test_classes.append((package_name + "/" + test_name + ".class").replace("/", "."))
 
-    suite_name = name
+    suite_name = "suite_" + name
     _gen_suite(
         name = suite_name,
         test_classes = test_classes,
@@ -87,9 +88,11 @@ def junit4_test_suites(
     java_test(
         name = name,
         test_class = (package_name + "/" + suite_name).replace("/", "."),
-        srcs = [":" + suite_name],
+        srcs = [":" + suite_name] + srcs,
         deps = deps,
+        data = data,
         tags = sizes,
+        **kwargs
     )
 
     for size in sizes:

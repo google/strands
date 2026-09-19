@@ -56,18 +56,18 @@ final class ScopeThreadFlock implements AutoCloseable {
   private final String name;
 
   // Set of currently registered Interruptible entities in this flock
-  @ThreadSafe.Suppress // ConcurrentHashMap.newKeySet() is thread safe.
+  @SuppressWarnings("ThreadSafe") // ConcurrentHashMap.newKeySet() is thread safe.
   private final Set<Thread> registeredThreads = ConcurrentHashMap.newKeySet();
 
   // Count of active threads in this flock
-  @ThreadSafe.Suppress // VarHandle guarded.
+  @SuppressWarnings("ThreadSafe") // VarHandle guarded.
   private volatile int threadCount;
 
-  @ThreadSafe.Suppress // State flag.
+  @SuppressWarnings("ThreadSafe") // State flag.
   private volatile boolean shutdown;
-  @ThreadSafe.Suppress // State flag.
+  @SuppressWarnings("ThreadSafe") // State flag.
   private volatile boolean closed;
-  @ThreadSafe.Suppress // VarHandle guarded via PERMIT_HANDLE.
+  @SuppressWarnings("ThreadSafe") // VarHandle guarded via PERMIT_HANDLE.
   private volatile boolean permit;
 
   ScopeThreadFlock(String name) {

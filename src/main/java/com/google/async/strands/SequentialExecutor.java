@@ -48,7 +48,7 @@ final class SequentialExecutor implements Executor, Runnable {
 
   private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
-  @ThreadSafe.Suppress
+  @SuppressWarnings("ThreadSafe")
   private final ConcurrentLinkedQueue<Runnable> queue = new ConcurrentLinkedQueue<>();
 
   private final AtomicInteger wip = new AtomicInteger();

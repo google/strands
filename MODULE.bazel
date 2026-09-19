@@ -17,50 +17,56 @@ module(
     version = "0.1.0",
 )
 
-bazel_dep(name = "rules_java", version = "9.8.0")
-bazel_dep(name = "rules_jvm_external", version = "6.8")
+bazel_dep(name = "rules_java", version = "9.9.0")
+bazel_dep(name = "rules_jvm_external", version = "7.1")
+bazel_dep(name = "bazel_skylib", version = "1.9.2")
 
 maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
 maven.install(
     artifacts = [
         # Production dependencies
         "com.google.auto.service:auto-service:1.1.1",
+        "com.google.flogger:flogger:0.9",
+        "com.google.flogger:flogger-system-backend:0.9",
+        "com.google.flogger:google-extensions:0.9",
+        "com.google.guava:guava:33.7.1-jre",
+        "org.jspecify:jspecify:1.0.1",
+        # Compile-only dependencies
         "com.google.auto.service:auto-service-annotations:1.1.1",
-        "com.google.errorprone:error_prone_annotations:2.36.0",
-        "com.google.flogger:flogger:0.8",
-        "com.google.flogger:flogger-system-backend:0.8",
-        "com.google.flogger:google-extensions:0.8",
-        "com.google.guava:guava:33.4.0-jre",
-        "org.jspecify:jspecify:1.0.0",
-
+        "com.google.errorprone:error_prone_annotations:2.50.0",
         # Test-only dependencies
-        maven.artifact(
-            group = "com.google.guava",
-            artifact = "guava-testlib",
-            version = "33.4.0-jre",
-            testonly = True,
-        ),
-        maven.artifact(
-            group = "com.google.truth",
-            artifact = "truth",
-            version = "1.4.4",
-            testonly = True,
-        ),
-        maven.artifact(
-            group = "junit",
-            artifact = "junit",
-            version = "4.13.2",
-            testonly = True,
-        ),
-        maven.artifact(
-            group = "org.mockito",
-            artifact = "mockito-core",
-            version = "5.14.2",
-            testonly = True,
-        ),
+        "com.google.guava:guava-testlib:33.7.1-jre",
+        "com.google.truth:truth:1.4.5",
+        "junit:junit:4.13.2",
+        "org.mockito:mockito-core:5.23.0",
     ],
+    known_contributing_modules = ["protobuf"],
     repositories = [
         "https://repo1.maven.org/maven2",
     ],
+)
+maven.amend_artifact(
+    coordinates = "com.google.auto.service:auto-service-annotations",
+    neverlink = "true",
+)
+maven.amend_artifact(
+    coordinates = "com.google.errorprone:error_prone_annotations",
+    neverlink = "true",
+)
+maven.amend_artifact(
+    testonly = "true",
+    coordinates = "com.google.guava:guava-testlib",
+)
+maven.amend_artifact(
+    testonly = "true",
+    coordinates = "com.google.truth:truth",
+)
+maven.amend_artifact(
+    testonly = "true",
+    coordinates = "junit:junit",
+)
+maven.amend_artifact(
+    testonly = "true",
+    coordinates = "org.mockito:mockito-core",
 )
 use_repo(maven, "maven")
