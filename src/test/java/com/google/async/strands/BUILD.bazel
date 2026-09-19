@@ -27,10 +27,7 @@ junit4_test_suites(
         ],
     ),
     data = ["@maven//:org_mockito_mockito_core"],
-    jvm_flags = [
-        "'-javaagent:$(location",
-        "@maven//:org_mockito_mockito_core)'",
-    ],
+    jvm_flags = ["-javaagent:$(location @maven//:org_mockito_mockito_core)"],
     sizes = ["small"],
     deps = [
         "//src/main/java/com/google/async/strands",
