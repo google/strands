@@ -46,7 +46,8 @@ final class FutureTask<T extends @Nullable Object>
   }
 
   @Override
+  @SuppressWarnings("Interruption") // Propagating the interruption to the future.
   public void cancel() {
-    future.cancel(false);
+    future.cancel(true);
   }
 }

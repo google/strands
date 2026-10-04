@@ -95,7 +95,7 @@ final class FirstSuccessfulTask<T extends @Nullable Object>
           onComplete.run();
           break process;
         }
-        case FAILED, CANCELLED, TIMEOUT -> {
+        case FAILED, CANCELLED, TIMEOUT, INTERRUPTED -> {
           onComplete.run();
           continue;
         }

@@ -219,6 +219,48 @@ public final class OrderedGathererTest {
   }
 
   @Test
+  public void withTimeout_bufferedElementTimesOutBeforeFlush_returnsTimeoutResult() {
+    CountDownLatch element2TimedOut = new CountDownLatch(1);
+    var results =
+        Stream.of(1, 2)
+            .gather(
+                OrderedGatherer.create(
+                    new FluentGatherer.Options(Scope.current(), 8, 8, Duration.ofMillis(10), true),
+                    i -> {
+                      if (i == 1) {
+                        return 1;
+                      }
+                      try {
+                        new CountDownLatch(1).await();
+                        return 2;
+                      } catch (InterruptedException e) {
+                        element2TimedOut.countDown();
+                        throw e;
+                      }
+                    },
+                    ResultIdentityPusher.instance()))
+            .peek(
+                r -> {
+                  if (r.isOk() && r.value() == 1) {
+                    try {
+                      // Wait until element 2's background timeout thread has transitioned it to
+                      // State.TIMEOUT and interrupted its thread before OrderedGatherer.flush()
+                      // calls awaitResult() on it.
+                      element2TimedOut.await();
+                    } catch (InterruptedException e) {
+                      Thread.currentThread().interrupt();
+                    }
+                  }
+                })
+            .collect(toList());
+
+    assertThat(results).hasSize(2);
+    assertThat(results.get(0).value()).isEqualTo(1);
+    assertThat(results.get(1).isFailed()).isTrue();
+    assertThat(results.get(1).failure()).isInstanceOf(TimeoutException.class);
+  }
+
+  @Test
   public void multipleElementsPerInput_succeeds() {
     List<Result<Integer>> results =
         Stream.of(1, 10, 100)

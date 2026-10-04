@@ -171,7 +171,6 @@ final class AsyncStrand<T extends @Nullable Object> extends AbstractStrand<T> {
    *     to complete; this is <i>not</i> the same as the task's thread being interrupted which
    *     results in a {@code FailedTaskException} will be thrown with an {@code
    *     InterruptedException} cause
-   * @throws IllegalStateException if the Strand is not in the {@link State#READY} state
    * @throws IllegalStateException if called from outside the scope that created this Strand
    * @throws IllegalArgumentException if the {@code timeout} is negative
    */
@@ -179,14 +178,9 @@ final class AsyncStrand<T extends @Nullable Object> extends AbstractStrand<T> {
   public final T await(Duration timeout) throws InterruptedException {
     checkArgument(!timeout.isNegative(), "timeout must be non-negative: %s", timeout);
     checkState(Scope.current() == scope, "Strand cannot be awaited from outside its scope.");
-    switch (state()) {
-      case CREATED ->
-          throw new StrandsInternalStateException(
-              "await() called on a Strand that has not been started.");
-      case TIMEOUT ->
-          throw new StrandsInternalStateException(
-              "await() called on a Strand that has already timed out.");
-      default -> {}
+    if (state() == State.CREATED) {
+      throw new StrandsInternalStateException(
+          "await() called on a Strand that has not been started.");
     }
 
     Thread thread = this.thread;
@@ -260,9 +254,11 @@ final class AsyncStrand<T extends @Nullable Object> extends AbstractStrand<T> {
     // INTERRUPTED. This will cause the state == state.RUNNING check to fail, and we'll skip to
     // running the callbacks and finishing.
     if (Thread.currentThread().isInterrupted()) {
-      var _ =
-          tryTransitionToInterrupted(
-              new InterruptedException("Strand interrupted before execution started."));
+      if (tryTransitionToInterrupted(
+              new InterruptedException("Strand interrupted before execution started."))
+          == State.INTERRUPTED) {
+        task.cancel();
+      }
     }
 
     State state = tryTransitionToRunning();
@@ -274,11 +270,12 @@ final class AsyncStrand<T extends @Nullable Object> extends AbstractStrand<T> {
       try {
         state = tryTransitionToSucceeded(task.run());
       } catch (Throwable e) {
-        if (e instanceof InterruptedException ie) {
+        Throwable cause = e instanceof FailedTaskException x ? requireNonNull(x.getCause()) : e;
+        if (cause instanceof InterruptedException ie) {
           Thread.currentThread().interrupt(); // Restore the interrupted status.
           state = tryTransitionToInterrupted(ie);
         } else {
-          state = tryTransitionToFailed(e);
+          state = tryTransitionToFailed(cause);
         }
       }
     }
@@ -394,9 +391,20 @@ final class AsyncStrand<T extends @Nullable Object> extends AbstractStrand<T> {
     return snapshot.state();
   }
 
-  /** Attempts to transition the strand to {@link State#FAILED} from {@link State#RUNNING}. */
+  /**
+   * Attempts to transition the strand to a failed terminal state ({@link State#FAILED}, {@link
+   * State#TIMEOUT}, {@link State#CANCELLED}, or {@link State#INTERRUPTED}) from {@link
+   * State#RUNNING}.
+   */
   private State tryTransitionToFailed(Throwable failure) {
-    Snapshot<T> next = new Snapshot<>(State.FAILED, Result.ofFailure(failure));
+    State targetState =
+        switch (failure) {
+          case TimeoutException e -> State.TIMEOUT;
+          case CancellationException e -> State.CANCELLED;
+          case InterruptedException e -> State.INTERRUPTED;
+          default -> State.FAILED;
+        };
+    Snapshot<T> next = new Snapshot<>(targetState, Result.ofFailure(failure));
     if (SNAPSHOT_HANDLE.compareAndSet(this, RUNNING_SNAPSHOT, next)) {
       thread = null;
     }

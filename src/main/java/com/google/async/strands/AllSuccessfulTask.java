@@ -86,7 +86,7 @@ final class AllSuccessfulTask<T extends @Nullable Object>
           onComplete.run();
           continue;
         }
-        case FAILED, CANCELLED, TIMEOUT -> {
+        case FAILED, CANCELLED, TIMEOUT, INTERRUPTED -> {
           onComplete.run();
           break process;
         }

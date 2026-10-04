@@ -32,8 +32,19 @@ public ListenableFuture<Response> handleRequestAsync(Request request) {
 ```
 
 The returned `ListenableFuture` represents the completion of the entire Strands
-tree. If a `FailedTaskException` reaches the root of the tree, Strands unwraps
-it and fails the resulting future with the underlying cause.
+tree:
+
+*   If an exception escapes the root of the tree, Strands unwraps any
+    `FailedTaskException` and fails the returned `ListenableFuture` with the
+    underlying cause.
+*   Cancelling the returned `ListenableFuture` (via either `cancel(true)` or
+    `cancel(false)`) interrupts the root virtual thread and cancels all child
+    Strands in the scope.
+*   An unhandled `CancellationException` escaping the root task (for example,
+    from awaiting a cancelled child `Strand`) is treated as a task failure
+    rather than a cancelled result `Future`: the returned `ListenableFuture`
+    fails with that exception and is only marked `isCancelled() == true` when
+    `Future.cancel(boolean)` is called on it directly.
 
 To call an external library returning a `ListenableFuture` or `Future` within a
 Strands context, adapt it using `Strands.async(Future<T>)`:
@@ -70,11 +81,10 @@ thread.
 
 Wrapping a `Future` provides the following behavior:
 
-*   When the parent scope closes or interrupts the strand, Strands catches
-    `InterruptedException` on the parked virtual thread and calls
+*   When the parent scope closes, interrupts the strand, times out the strand,
+    or when the caller explicitly cancels the strand via `strand.cancel()`,
+    Strands propagates cooperative cancellation to the underlying future via
     `future.cancel(true)`.
-*   When the caller explicitly cancels the strand via `strand.cancel()`, Strands
-    calls `future.cancel(false)`.
 *   When the future completes exceptionally with an `ExecutionException`,
     Strands unwraps the cause and throws a `FailedTaskException` containing the
     underlying exception.
