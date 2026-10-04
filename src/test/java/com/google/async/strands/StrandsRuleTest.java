@@ -72,17 +72,16 @@ public final class StrandsRuleTest {
   @Test
   public void run_propagatesCancellationException() {
     StrandsRule standaloneRule = StrandsRule.create();
+    CancellationException expected = new CancellationException("cancelled task");
     CancellationException thrown =
         assertThrows(
             CancellationException.class,
             () ->
                 standaloneRule.run(
                     () -> {
-                      throw new CancellationException("cancelled task");
+                      throw expected;
                     }));
-    // The propagated exception comes from the cancelled Future, so it is not the instance (nor
-    // message) thrown by the task itself.
-    assertThat(thrown).isNotNull();
+    assertThat(thrown).isSameInstanceAs(expected);
   }
 
   @Test
@@ -100,15 +99,14 @@ public final class StrandsRuleTest {
   @Test
   public void assertFails_catchesCancellationException() {
     StrandsRule standaloneRule = StrandsRule.create();
+    CancellationException expected = new CancellationException("cancelled task");
     CancellationException thrown =
         standaloneRule.assertFails(
             CancellationException.class,
             () -> {
-              throw new CancellationException("cancelled task");
+              throw expected;
             });
-    // The returned exception comes from the cancelled Future, so it is not the instance (nor
-    // message) thrown by the task itself.
-    assertThat(thrown).isNotNull();
+    assertThat(thrown).isSameInstanceAs(expected);
   }
 
   @Test
@@ -125,7 +123,7 @@ public final class StrandsRuleTest {
                     }));
     assertThat(error)
         .hasMessageThat()
-        .contains("Expected Strand to fail with class java.io.IOException; actually was cancelled");
+        .contains("Expected Strand to fail with class java.io.IOException; actually failed with");
     assertThat(error).hasCauseThat().isInstanceOf(CancellationException.class);
   }
 }

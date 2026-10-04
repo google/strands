@@ -180,6 +180,38 @@ public class AsyncStrandTest {
 
   @Test
   @InStrand
+  public void state_transitions_taskThrowsTimeoutException_transitionsToTimeout() {
+    AsyncStrand<String> strand =
+        new AsyncStrand<>(
+            Scope.current(),
+            () -> {
+              throw new TimeoutException("timed out");
+            });
+    strand.start();
+
+    FailedTaskException ex = assertThrows(FailedTaskException.class, strand::await);
+    assertThat(ex).hasCauseThat().isInstanceOf(TimeoutException.class);
+    assertThat(strand.state()).isEqualTo(Strand.State.TIMEOUT);
+  }
+
+  @Test
+  @InStrand
+  public void state_transitions_taskThrowsCancellationException_transitionsToCancelled() {
+    AsyncStrand<String> strand =
+        new AsyncStrand<>(
+            Scope.current(),
+            () -> {
+              throw new CancellationException("cancelled");
+            });
+    strand.start();
+
+    FailedTaskException ex = assertThrows(FailedTaskException.class, strand::await);
+    assertThat(ex).hasCauseThat().isInstanceOf(CancellationException.class);
+    assertThat(strand.state()).isEqualTo(Strand.State.CANCELLED);
+  }
+
+  @Test
+  @InStrand
   public void cancel_runningTask_transitionsToCancelled() throws Exception {
     CountDownLatch startedLatch = new CountDownLatch(1);
     Strand<Integer> strand =
@@ -214,6 +246,30 @@ public class AsyncStrandTest {
     FailedTaskException ex =
         assertThrows(FailedTaskException.class, () -> strand.await(Duration.ofMillis(50)));
     assertThat(ex).hasCauseThat().isInstanceOf(TimeoutException.class);
+    assertThat(strand.state()).isEqualTo(Strand.State.TIMEOUT);
+  }
+
+  @Test
+  @InStrand
+  public void awaitWithTimeout_repeatedAwaitAfterTimeout_throwsTimeoutExceptionIdempotently()
+      throws Exception {
+    AsyncStrand<Void> strand =
+        new AsyncStrand<>(
+            Scope.current(),
+            () -> {
+              Thread.sleep(60000);
+              return null;
+            });
+    strand.start();
+
+    FailedTaskException firstEx =
+        assertThrows(FailedTaskException.class, () -> strand.await(Duration.ofMillis(50)));
+    assertThat(firstEx).hasCauseThat().isInstanceOf(TimeoutException.class);
+    assertThat(strand.state()).isEqualTo(Strand.State.TIMEOUT);
+
+    FailedTaskException secondEx = assertThrows(FailedTaskException.class, strand::await);
+    assertThat(secondEx).hasCauseThat().isInstanceOf(TimeoutException.class);
+    assertThat(strand.awaitResult().failure()).isInstanceOf(TimeoutException.class);
     assertThat(strand.state()).isEqualTo(Strand.State.TIMEOUT);
   }
 
@@ -265,5 +321,38 @@ public class AsyncStrandTest {
     assertThat(ex).hasCauseThat().isInstanceOf(CancellationException.class);
     assertThat(strand.state()).isEqualTo(Strand.State.CANCELLED);
     assertThat(taskExecuted.get()).isFalse();
+  }
+
+  @Test
+  @InStrand
+  public void interrupted_beforeExecute_transitionsToInterruptedAndCancelsTask() throws Exception {
+    AtomicBoolean taskExecuted = new AtomicBoolean(false);
+    AtomicBoolean taskCancelled = new AtomicBoolean(false);
+    var _ =
+        Strands.scope(
+            () -> {
+              AsyncStrand<Void> strand =
+                  new AsyncStrand<>(
+                      Scope.current(),
+                      new AsyncStrand.CancellableTask<Void, RuntimeException>() {
+                        @Override
+                        public Void run() {
+                          taskExecuted.set(true);
+                          return null;
+                        }
+
+                        @Override
+                        public void cancel() {
+                          taskCancelled.set(true);
+                        }
+                      });
+              strand.start();
+              // Exit the scope immediately while the current strand holds the SequentialExecutor,
+              // so Scope.close() interrupts the child strand before execute() runs.
+              return null;
+            });
+
+    assertThat(taskExecuted.get()).isFalse();
+    assertThat(taskCancelled.get()).isTrue();
   }
 }

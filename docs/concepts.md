@@ -70,6 +70,33 @@ A scope automatically guarantees its state before it returns. When execution
 leaves a block, Strands guarantees that the scope joins or interrupts all
 virtual threads launched within that block.
 
+### Single-Execution Guarantee
+
+Every `Strands.concurrent(...)` root tree schedules all of its child virtual
+threads (`Strands.async(...)` and `Strands.scope(...)`) onto a single
+sequential scheduler. At most **one** strand in the tree executes at any given
+instant; another strand in the tree only runs when the active strand parks (for
+example, inside `.await()`, blocking I/O, or a lock) or completes.
+
+Because strands within the same `Strands.concurrent(...)` tree never execute in
+parallel with one another between blocking points, tasks within the same tree
+can read and mutate shared state (such as standard collections, builders, or
+counters) without `synchronized` blocks or `Atomic*` primitives.
+
+### Strict Scope Affinity
+
+Every `Strand<T>` is bound to the exact `Scope` in which it was created:
+
+-   A `Strand` can only be awaited (`.await()`, `.awaitResult()`) or composed
+    (`Strands.compose(...)`) while its creating `Scope` is the current active
+    scope (`Scope.current() == strand.scope()`).
+-   Sibling strands created with `Strands.async(...)` in the same scope share
+    that scope binding and may await one another.
+-   Attempting to await an outer scope's `Strand` from inside a nested
+    `Strands.scope(...)` block—or returning an unawaited `Strand` out of a
+    `Strands.scope(...)` block to await in the outer scope—throws
+    `IllegalStateException`.
+
 ### Context Propagation and Scoped Values
 
 Strands automatically manages its internal `Scope` context so that child strands
@@ -126,7 +153,8 @@ Strand<Boolean> authCheck = Strands.async(() -> {
 boolean isAuthenticated = authCheck.await();
 ```
 
-You can also pass `java.time.Duration` for a timeout:
+You can also pass `java.time.Duration` for a timeout (`Duration.ZERO` waits
+indefinitely, equivalent to `.await()`):
 
 ```java
 // Throws a FailedTaskException if it takes longer than 5 seconds.

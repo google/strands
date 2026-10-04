@@ -153,6 +153,17 @@ public final class Strands {
    * (Strands) that have a single-execution guarantee. Each call to {@link #concurrent} starts a new
    * independent tree.
    *
+   * <p>If an exception escapes {@code task}, the returned {@link ListenableFuture} fails with that
+   * exception (unwrapping {@link FailedTaskException} if thrown by a child {@link Strand}).
+   * Cancelling the returned {@link ListenableFuture} (via either {@code cancel(true)} or {@code
+   * cancel(false)}) interrupts the root virtual thread and cancels all child Strands in the scope.
+   *
+   * <p>Note that an unhandled {@link CancellationException} escaping {@code task} (for example,
+   * from awaiting a cancelled child {@link Strand}) is treated as a task failure rather than a
+   * cancelled result {@link Future}: the returned {@link ListenableFuture} fails with that
+   * exception and is only marked {@link Future#isCancelled() cancelled} when {@link
+   * Future#cancel(boolean)} is called on it directly.
+   *
    * <p>This method uses an implicit {@link Environment}: if the caller already has one active, it
    * uses that, otherwise it uses the default runtime environment. See {@link Environment} for how
    * that default is resolved.
@@ -185,6 +196,17 @@ public final class Strands {
    * <p>{@link #concurrent} can be thought of starting a tree of execution of virtual threads
    * (Strands) that have a single-execution guarantee. Each call to {@link #concurrent} starts a new
    * independent tree.
+   *
+   * <p>If an exception escapes {@code task}, the returned {@link ListenableFuture} fails with that
+   * exception (unwrapping {@link FailedTaskException} if thrown by a child {@link Strand}).
+   * Cancelling the returned {@link ListenableFuture} (via either {@code cancel(true)} or {@code
+   * cancel(false)}) interrupts the root virtual thread and cancels all child Strands in the scope.
+   *
+   * <p>Note that an unhandled {@link CancellationException} escaping {@code task} (for example,
+   * from awaiting a cancelled child {@link Strand}) is treated as a task failure rather than a
+   * cancelled result {@link Future}: the returned {@link ListenableFuture} fails with that
+   * exception and is only marked {@link Future#isCancelled() cancelled} when {@link
+   * Future#cancel(boolean)} is called on it directly.
    *
    * <p>This method uses an explicit {@link Environment}, which allows the caller to specify
    * framework behavior for this tree of virtual threads instead of inheriting that behavior from
@@ -222,11 +244,13 @@ public final class Strands {
               Thread.currentThread().interrupt(); // Restore the interrupted status
             }
             Throwable cause = e instanceof FailedTaskException x ? requireNonNull(x.getCause()) : e;
-            if (cause instanceof CancellationException) {
-              result.cancel(false);
-            } else {
-              result.setException(cause);
-            }
+            // All unhandled exceptions escaping the root task (including an unhandled
+            // CancellationException from awaiting a cancelled child Strand or upstream Future)
+            // represent a failure of the graph and are reported via setException(cause), preserving
+            // the original exception instance, message, and stack trace. The root ListenableFuture
+            // only transitions to isCancelled() == true when Future.cancel(...) is called on it
+            // directly by an external caller.
+            result.setException(cause);
           }
         };
     if (context.contextPropagationOperator() != null) {
@@ -241,6 +265,12 @@ public final class Strands {
     result.addListener(
         () -> {
           if (result.isCancelled()) {
+            // Unconditionally interrupt the root virtual thread whenever the returned Future is
+            // cancelled (regardless of whether cancel(true) or cancel(false) was called). Because
+            // vt is started immediately and virtual thread interruption is Strands' only mechanism
+            // for cooperative scope cancellation, skipping interruption on cancel(false) would
+            // leave the entire Strands scope and its child virtual threads running in the
+            // background as an orphaned tree after result already reported itself as done.
             vt.interrupt();
           }
         },
