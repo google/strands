@@ -11,8 +11,14 @@ failure, and how to degrade gracefully when errors occur.
 
 ## Fail Fast By Default
 
-Calling `await()` on a `Strand` rethrows any checked or unchecked exception from
-the task as a `FailedTaskException`.
+Because `Task<T, X extends Throwable>` permits throwing any `Throwable`, lambdas
+passed to `Strands.async(() -> ...)` can throw checked or unchecked exceptions
+directly without catching them inside the lambda.
+
+Calling `await()` on a `Strand` wraps **every** exception thrown by the task—
+including unchecked `RuntimeException` subclasses as well as checked
+exceptions—in an unchecked `FailedTaskException` whose `getCause()` is the
+original exception:
 
 ```java
 Strand<String> strand = Strands.async(() -> {
@@ -28,6 +34,17 @@ try {
   System.out.println(cause.getMessage()); // "Server error"
 }
 ```
+
+> [!IMPORTANT]
+> Because `strand.await()` always wraps task failures in `FailedTaskException`
+> (even when the task threw a `RuntimeException`), a `catch (SomeException e)`
+> block around `strand.await()` will not match `SomeException` directly. To
+> handle a specific exception type from a `Strand`, either catch
+> `FailedTaskException` and inspect `e.getCause()`, or use
+> `strand.awaitResult().orElse(SomeException.class, ...)` as shown below. By
+> contrast, direct synchronous calls on the current virtual thread (not wrapped
+> in `Strands.async(...)`) and sub-scopes run via `Strands.scope(...)` throw
+> their checked and unchecked exceptions directly.
 
 Similarly, when a Strand times out (`await(Duration)`) or undergoes cooperative
 cancellation, `await()` throws a `FailedTaskException` wrapping a
