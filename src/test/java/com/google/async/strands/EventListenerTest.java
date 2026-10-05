@@ -190,8 +190,12 @@ public class EventListenerTest {
                       });
               return s1.await();
             });
-    assertThrows(CancellationException.class, () -> result.get());
-    assertThat(result.isCancelled()).isTrue();
+    // Because the root task awaited a cancelled child strand (s1) without catching
+    // FailedTaskException, the root task failed with an unhandled CancellationException rather than
+    // the root ListenableFuture itself being cancelled via result.cancel(...).
+    ExecutionException e = assertThrows(ExecutionException.class, () -> result.get());
+    assertThat(e).hasCauseThat().isInstanceOf(CancellationException.class);
+    assertThat(result.isCancelled()).isFalse();
     verify(mockListener).scopeOpen();
     verify(mockListener).scopeClose(anyLong());
     verify(mockListener, times(2)).strandCreate();
