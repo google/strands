@@ -44,15 +44,15 @@ import org.junit.runners.model.Statement;
  *
  * <p>The rule can be used in two ways:
  *
- * <h3>1. Automatic Scope Binding with {@link Concurrent @StrandsRule.Concurrent}</h3>
+ * <h3>1. Automatic Scope Binding with {@link InStrand @StrandsRule.InStrand}</h3>
  *
- * Annotating a test class or individual test method with {@code @StrandsRule.Concurrent} tells the
+ * Annotating a test class or individual test method with {@code @StrandsRule.InStrand} tells the
  * rule to execute the test body inside an active Strands {@code Scope}. This allows direct calls to
  * {@link Strands#async}, {@link Strands#scope}, and {@link Scope#current} without manual lambda
  * wrapping:
  *
  * <pre>{@code
- * @StrandsRule.Concurrent // Opt-in all tests in this class
+ * @StrandsRule.InStrand // Opt-in all tests in this class
  * @RunWith(JUnit4.class)
  * public final class MyStrandsTest {
  *
@@ -66,7 +66,7 @@ import org.junit.runners.model.Statement;
  * }
  * }</pre>
  *
- * <p>Test methods without the {@code @Concurrent} annotation run as standard, unannotated JUnit 4
+ * <p>Test methods without the {@code @InStrand} annotation run as standard, unannotated JUnit 4
  * tests without an active Strands scope. This allows testing out-of-scope conditions cleanly within
  * the same test suite:
  *
@@ -83,9 +83,9 @@ import org.junit.runners.model.Statement;
  *   }
  *
  *   @Test
- *   @StrandsRule.Concurrent
+ *   @StrandsRule.InStrand
  *   public void scopeCurrent_inScope_returnsScope() {
- *     // Annotated @Concurrent: runs inside a Strands scope!
+ *     // Annotated @InStrand: runs inside a Strands scope!
  *     assertThat(Scope.current()).isNotNull();
  *   }
  * }
@@ -93,8 +93,8 @@ import org.junit.runners.model.Statement;
  *
  * <h3>2. Standalone / Block-Level Execution with {@link #run} and {@link #assertFails}</h3>
  *
- * When not using {@code @Concurrent}, or when testing isolated sub-scopes, use {@link #run} or
- * {@link #assertFails} to execute specific tasks:
+ * When not using {@code @InStrand}, or when testing isolated sub-scopes, use {@link #run} or {@link
+ * #assertFails} to execute specific tasks:
  *
  * <pre>{@code
  * @RunWith(JUnit4.class)
