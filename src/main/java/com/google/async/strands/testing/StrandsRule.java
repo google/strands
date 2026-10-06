@@ -31,7 +31,6 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.time.Duration;
 import java.util.Objects;
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import org.jspecify.annotations.Nullable;
@@ -247,6 +246,9 @@ public final class StrandsRule implements TestRule {
     } catch (TimeoutException e) {
       throw new AssertionError("Future did not complete within " + timeout.toMillis() + "ms", e);
     } catch (ExecutionException e) {
+      // Strands.concurrent reports all unhandled task exceptions (including CancellationException)
+      // via setException(cause), so they all arrive here as the cause of ExecutionException and
+      // are rethrown directly with their original instance and stack trace preserved.
       Throwable cause = e.getCause();
       if (cause != null) {
         throw sneakyThrow(cause);
@@ -254,8 +256,6 @@ public final class StrandsRule implements TestRule {
       throw new AssertionError(
           "Expected Strand to complete successfully. Actually failed with: " + e.getCause(),
           e.getCause());
-    } catch (CancellationException e) {
-      throw sneakyThrow(e);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new AssertionError("Thread was interrupted before Strand completed", e);
@@ -283,6 +283,8 @@ public final class StrandsRule implements TestRule {
     } catch (TimeoutException e) {
       throw new AssertionError("Future did not complete within " + timeout.toMillis() + "ms", e);
     } catch (ExecutionException e) {
+      // Strands.concurrent reports all unhandled task exceptions (including CancellationException)
+      // via setException(cause), so they all arrive here as the cause of ExecutionException.
       Throwable cause = requireNonNull(e.getCause());
       if (exceptionClass.isInstance(cause)) {
         return exceptionClass.cast(cause);
@@ -291,13 +293,6 @@ public final class StrandsRule implements TestRule {
           String.format(
               "Expected Strand to fail with %s; actually failed with %s", exceptionClass, cause),
           cause);
-    } catch (CancellationException e) {
-      if (exceptionClass.isInstance(e)) {
-        return exceptionClass.cast(e);
-      }
-      throw new AssertionError(
-          String.format("Expected Strand to fail with %s; actually was cancelled", exceptionClass),
-          e);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new AssertionError("Thread was interrupted before promise completed", e);

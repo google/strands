@@ -24,6 +24,7 @@ import com.google.async.strands.testing.StrandsRule.InStrand;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -217,5 +218,34 @@ public final class BoundedComposerTest {
         assertThrows(IllegalStateException.class, () -> composer.allCompleted());
 
     assertThat(expected).hasMessageThat().contains("called from outside the scope");
+  }
+
+  @Test
+  public void allSuccessful_candidateThrowsInterruptedException_shortCircuitsToInterrupted()
+      throws Exception {
+    CountDownLatch s1Done = new CountDownLatch(1);
+    Strand<Integer> s1 =
+        Strands.async(
+            () -> {
+              try {
+                throw new InterruptedException("interrupted candidate");
+              } finally {
+                s1Done.countDown();
+              }
+            });
+    Strand<Integer> s2 =
+        Strands.async(
+            () -> {
+              Thread.sleep(60000);
+              return 2;
+            });
+
+    Strand<Stream<Integer>> composed = Strands.compose(s1, s2).allSuccessful();
+    s1Done.await();
+
+    Result<Stream<Integer>> result = composed.awaitResult();
+    assertThat(result.isFailed()).isTrue();
+    assertThat(result.failure()).isInstanceOf(InterruptedException.class);
+    assertThat(composed.state()).isEqualTo(Strand.State.INTERRUPTED);
   }
 }

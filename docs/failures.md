@@ -100,8 +100,14 @@ When you create the outermost scope using `Strands.concurrent(...)`, exceptions
 propagate up the Strands tree to the root task.
 
 If a `FailedTaskException` reaches the root task, Strands automatically unwraps
-it. The `ListenableFuture` returned by `Strands.concurrent(...)` then fails with
+it and fails the `ListenableFuture` returned by `Strands.concurrent(...)` with
 the original cause.
+
+Note that an unhandled `CancellationException` escaping the root task (for
+example, from awaiting a cancelled child `Strand`) is treated as a task failure
+rather than a cancelled result `Future`: the returned `ListenableFuture` fails
+with that exception and is only marked `isCancelled() == true` when
+`Future.cancel(...)` is called on it directly.
 
 ## Gatherers and Error Policies
 
