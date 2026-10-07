@@ -19,6 +19,7 @@ package com.google.async.strands;
 import static com.google.async.strands.Strands.async;
 import static com.google.async.strands.Strands.compose;
 import static com.google.async.strands.Strands.scope;
+import static com.google.async.strands.Strands.toStrand;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 
@@ -107,8 +108,8 @@ public class StrandsIntegrationTest {
   }
 
   @Test
-  public void async_withFuture_succeeds() throws Exception {
-    int result = async(Executors.newSingleThreadExecutor().submit(() -> 1)).await();
+  public void toStrand_withFuture_succeeds() throws Exception {
+    int result = toStrand(Executors.newSingleThreadExecutor().submit(() -> 1)).await();
 
     assertThat(result).isEqualTo(1);
   }
@@ -166,7 +167,7 @@ public class StrandsIntegrationTest {
   }
 
   @Test
-  public void async_futureThrowsException_strandFails() {
+  public void toStrand_futureThrowsException_strandFails() {
     AtomicReference<Strand<Integer>> s1Ref = new AtomicReference<>();
 
     RuntimeException e =
@@ -177,7 +178,7 @@ public class StrandsIntegrationTest {
                   () -> {
                     throw new RuntimeException("failed");
                   };
-              var s1 = async(Executors.newSingleThreadExecutor().submit(task));
+              var s1 = toStrand(Executors.newSingleThreadExecutor().submit(task));
               s1Ref.set(s1);
               return s1.await();
             });
@@ -482,14 +483,14 @@ public class StrandsIntegrationTest {
   }
 
   @Test
-  public void async_cancelFuture_cancelsFuture() {
+  public void toStrand_cancelFuture_cancelsFuture() {
     SettableFuture<Integer> future = SettableFuture.create();
     AtomicReference<Strand<Integer>> s1Ref = new AtomicReference<>();
 
     strands.assertFails(
         CancellationException.class,
         () -> {
-          Strand<Integer> s1 = async(future);
+          Strand<Integer> s1 = toStrand(future);
           s1Ref.set(s1);
           s1.cancel();
           return s1.await();
@@ -500,7 +501,7 @@ public class StrandsIntegrationTest {
   }
 
   @Test
-  public void async_cancelFuture_interruptsRunningFutureTask() throws Exception {
+  public void toStrand_cancelFuture_interruptsRunningFutureTask() throws Exception {
     CountDownLatch started = new CountDownLatch(1);
     CountDownLatch interrupted = new CountDownLatch(1);
     var executor = Executors.newSingleThreadExecutor();
@@ -518,7 +519,7 @@ public class StrandsIntegrationTest {
             });
 
     started.await();
-    Strand<Integer> s1 = async(future);
+    Strand<Integer> s1 = toStrand(future);
     s1.cancel();
 
     interrupted.await();
@@ -528,9 +529,9 @@ public class StrandsIntegrationTest {
   }
 
   @Test
-  public void async_runningFutureExternallyCancelled_transitionsToCancelled() throws Exception {
+  public void toStrand_runningFutureExternallyCancelled_transitionsToCancelled() throws Exception {
     SettableFuture<Integer> future = SettableFuture.create();
-    Strand<Integer> s1 = async(future);
+    Strand<Integer> s1 = toStrand(future);
     future.cancel(true);
 
     Result<Integer> result = s1.awaitResult();
@@ -540,9 +541,10 @@ public class StrandsIntegrationTest {
   }
 
   @Test
-  public void async_runningFutureFailsWithTimeoutException_transitionsToTimeout() throws Exception {
+  public void toStrand_runningFutureFailsWithTimeoutException_transitionsToTimeout()
+      throws Exception {
     SettableFuture<Integer> future = SettableFuture.create();
-    Strand<Integer> s1 = async(future);
+    Strand<Integer> s1 = toStrand(future);
     future.setException(new TimeoutException("timed out"));
 
     Result<Integer> result = s1.awaitResult();
@@ -552,14 +554,14 @@ public class StrandsIntegrationTest {
   }
 
   @Test
-  public void async_futureThrowsInterruptedException_strandFails() {
+  public void toStrand_futureThrowsInterruptedException_strandFails() {
     AtomicReference<Strand<Integer>> s1Ref = new AtomicReference<>();
 
     strands.assertFails(
         InterruptedException.class,
         () -> {
           var s1 =
-              async(
+              toStrand(
                   Executors.newSingleThreadExecutor()
                       .submit(
                           (Callable<Integer>)

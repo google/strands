@@ -210,8 +210,8 @@ public sealed interface Result<T extends @Nullable Object> permits Result.Ok, Re
 
   /**
    * Returns a {@code Result} whose value is either this result's value or the {@code Result}
-   * returned by {@link Strand#awaitResult()} after running a {@link Future} with {@link
-   * Strands#async(Future)}.
+   * returned by {@link Strand#awaitResult()} after adapting a {@link Future} with {@link
+   * Strands#toStrand(Future)}.
    *
    * <p>This is a convenience for performing an async operation as part of a {@link
    * #orElseGet(Task)} call:
@@ -223,7 +223,7 @@ public sealed interface Result<T extends @Nullable Object> permits Result.Ok, Re
    * <p>Is equivalent to:
    *
    * <pre>{@code
-   * result.orElseGet(() -> async(future).await())
+   * result.orElseGet(() -> toStrand(future).await())
    * }</pre>
    *
    * @throws InterruptedException if the current thread was interrupted while waiting for the Strand
@@ -235,8 +235,8 @@ public sealed interface Result<T extends @Nullable Object> permits Result.Ok, Re
 
   /**
    * Returns a {@code Result} whose value is either this result's value or the {@code Result}
-   * returned by {@link Strand#awaitResult(Duration)} after running an {@link Future} with {@link
-   * Strands#async(Future)}.
+   * returned by {@link Strand#awaitResult(Duration)} after adapting a {@link Future} with {@link
+   * Strands#toStrand(Future)}.
    *
    * <p>This is a convenience for performing an async operation as part of a {@link
    * #orElseGet(Task)} call:
@@ -248,7 +248,7 @@ public sealed interface Result<T extends @Nullable Object> permits Result.Ok, Re
    * <p>Is equivalent to:
    *
    * <pre>{@code
-   * result.orElseGet(() -> async(future).await(timeout))
+   * result.orElseGet(() -> toStrand(future).await(timeout))
    * }</pre>
    *
    * @param timeout the maximum duration to wait for the Strand's task to complete, {@link
@@ -258,7 +258,7 @@ public sealed interface Result<T extends @Nullable Object> permits Result.Ok, Re
    *     to complete
    */
   default Result<T> orElseAsync(Future<T> future, Duration timeout) throws InterruptedException {
-    return !isOk() ? Strands.async(future).awaitResult(timeout) : this;
+    return !isOk() ? Strands.toStrand(future).awaitResult(timeout) : this;
   }
 
   /**
@@ -330,9 +330,9 @@ public sealed interface Result<T extends @Nullable Object> permits Result.Ok, Re
 
   /**
    * Returns a {@code Result} whose value is either this result's value or the {@code Result}
-   * returned by {@link Strand#awaitResult()} after running an {@link Future} with {@link
-   * Strands#async(Future)} if this result is failed with a {@link Throwable} that is an instance of
-   * a specific {@link Class}.
+   * returned by {@link Strand#awaitResult()} after adapting a {@link Future} with {@link
+   * Strands#toStrand(Future)} if this result is failed with a {@link Throwable} that is an instance
+   * of a specific {@link Class}.
    *
    * <p>This is a convenience for performing an async operation as part of a {@link
    * #orElseGet(Class, Task)} call:
@@ -344,7 +344,7 @@ public sealed interface Result<T extends @Nullable Object> permits Result.Ok, Re
    * <p>Is equivalent to:
    *
    * <pre>{@code
-   * result.orElseGet(SomeException.class, () -> async(future).await())
+   * result.orElseGet(SomeException.class, () -> toStrand(future).await())
    * }</pre>
    *
    * <p>If this result is failed with a failure of a different {@code Class}, this result is
@@ -360,9 +360,9 @@ public sealed interface Result<T extends @Nullable Object> permits Result.Ok, Re
 
   /**
    * Returns a {@code Result} whose value is either this result's value or the {@code Result}
-   * returned by {@link Strand#awaitResult(Duration)} after running an {@link Future} with {@link
-   * Strands#async(Future)} if this result is failed with a {@link Throwable} that is an instance of
-   * a specific {@link Class}.
+   * returned by {@link Strand#awaitResult(Duration)} after adapting a {@link Future} with {@link
+   * Strands#toStrand(Future)} if this result is failed with a {@link Throwable} that is an instance
+   * of a specific {@link Class}.
    *
    * <p>This is a convenience for performing an async operation as part of a {@link
    * #orElseGet(Class, Task)} call:
@@ -374,7 +374,7 @@ public sealed interface Result<T extends @Nullable Object> permits Result.Ok, Re
    * <p>Is equivalent to:
    *
    * <pre>{@code
-   * result.orElseGet(SomeException.class, () -> async(future).await(timeout))
+   * result.orElseGet(SomeException.class, () -> toStrand(future).await(timeout))
    * }</pre>
    *
    * <p>If this result is failed with a failure of a different {@code Class}, this result is
@@ -390,7 +390,7 @@ public sealed interface Result<T extends @Nullable Object> permits Result.Ok, Re
       Class<? extends Throwable> failureClass, Future<T> future, Duration timeout)
       throws InterruptedException {
     return !isOk() && failureClass.isInstance(failure())
-        ? Strands.async(future).awaitResult(timeout)
+        ? Strands.toStrand(future).awaitResult(timeout)
         : this;
   }
 
@@ -465,9 +465,9 @@ public sealed interface Result<T extends @Nullable Object> permits Result.Ok, Re
 
   /**
    * Returns a {@code Result} whose value is either this result's value or the {@code Result}
-   * returned by {@link Strand#awaitResult()} after running an {@link Future} with {@link
-   * Strands#async(Future)} if this result is failed with a {@link Throwable} that matches a {@link
-   * Predicate}.
+   * returned by {@link Strand#awaitResult()} after adapting a {@link Future} with {@link
+   * Strands#toStrand(Future)} if this result is failed with a {@link Throwable} that matches a
+   * {@link Predicate}.
    *
    * <p>This is a convenience for performing an async operation as part of a {@link
    * #orElseGet(Predicate, Task)} call:
@@ -479,7 +479,7 @@ public sealed interface Result<T extends @Nullable Object> permits Result.Ok, Re
    * <p>Is equivalent to:
    *
    * <pre>{@code
-   * result.orElseGet(predicate, () -> async(future).await())
+   * result.orElseGet(predicate, () -> toStrand(future).await())
    * }</pre>
    *
    * <p>If this result is failed and the {@code Predicate} does not match the failure, this result
@@ -495,9 +495,9 @@ public sealed interface Result<T extends @Nullable Object> permits Result.Ok, Re
 
   /**
    * Returns a {@code Result} whose value is either this result's value or the {@code Result}
-   * returned by {@link Strand#awaitResult(Duration)} after running an {@link Future} with {@link
-   * Strands#async(Future)} if this result is failed with a {@link Throwable} that matches a {@link
-   * Predicate}.
+   * returned by {@link Strand#awaitResult(Duration)} after adapting a {@link Future} with {@link
+   * Strands#toStrand(Future)} if this result is failed with a {@link Throwable} that matches a
+   * {@link Predicate}.
    *
    * <p>This is a convenience for performing an async operation as part of a {@link
    * #orElseGet(Predicate, Task)} call:
@@ -509,7 +509,7 @@ public sealed interface Result<T extends @Nullable Object> permits Result.Ok, Re
    * <p>Is equivalent to:
    *
    * <pre>{@code
-   * result.orElseGet(predicate, () -> async(future).await(timeout))
+   * result.orElseGet(predicate, () -> toStrand(future).await(timeout))
    * }</pre>
    *
    * <p>If this result is failed and the {@code Predicate} does not match the failure, this result
@@ -525,7 +525,7 @@ public sealed interface Result<T extends @Nullable Object> permits Result.Ok, Re
       Predicate<? super Throwable> failurePredicate, Future<T> future, Duration timeout)
       throws InterruptedException {
     return !isOk() && failurePredicate.test(failure())
-        ? Strands.async(future).awaitResult(timeout)
+        ? Strands.toStrand(future).awaitResult(timeout)
         : this;
   }
 

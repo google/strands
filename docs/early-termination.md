@@ -61,8 +61,15 @@ Strands.async(() -> {
 ```
 
 > [!TIP]
-> If your task does not need to clean up resources on interruption, allow
-> `InterruptedException` to propagate directly without a `try/catch` block.
+> Because `Task<T, X>` permits throwing checked exceptions, lambdas passed to
+> `Strands.async(...)`, `Strands.scope(...)`, or `Strands.concurrent(...)` can
+> let a checked `InterruptedException` propagate directly without a `try/catch`
+> block. Similarly, helper methods that call `.await()` or other interruptible
+> blocking APIs should declare `throws InterruptedException` rather than
+> catching `InterruptedException` and wrapping it in an unchecked
+> `RuntimeException`—wrapping an `InterruptedException` causes Strands to record
+> the task as `FAILED` rather than `INTERRUPTED` (see
+> [Style Guide](style.md#interrupted-exception)).
 
 ## Triggers for Early Termination
 

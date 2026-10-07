@@ -47,47 +47,41 @@ tree:
     `Future.cancel(boolean)` is called on it directly.
 
 To call an external library returning a `ListenableFuture` or `Future` within a
-Strands context, adapt it using `Strands.async(Future<T>)`:
+Strands context, wrap the `Future` in `Strands.toStrand(Future)`:
 
 ```java
-import static com.google.async.strands.Strands.async;
+import static com.google.async.strands.Strands.toStrand;
 
 import com.google.async.strands.Strand;
 import com.google.common.util.concurrent.ListenableFuture;
 
-public void processData() throws InterruptedException {
-  // Call a method that returns ListenableFuture<Data>.
+public Data fetchExternalData() throws InterruptedException {
+  // Assume legacyClient.fetchDataAsync() returns a ListenableFuture<Data>
   ListenableFuture<Data> futureData = legacyClient.fetchDataAsync();
 
-  // Wrap the future as a strand to integrate it into the scope's error
-  // and cancellation handling.
-  Strand<Data> futureStrand = async(futureData);
+  // Adapts the Future into a Strand within the current scope.
+  Strand<Data> dataStrand = toStrand(futureData);
 
-  // Standard await() mechanisms apply.
-  Data data = futureStrand.await();
+  // You can now use all standard Strand APIs (await, awaitResult, compose, etc.)
+  return dataStrand.await();
 }
 ```
 
-### Cancellation and Wrapping Futures
+### Cancellation and Exception Handling for Futures
 
-When you adapt a `Future` using `Strands.async(Future<T>)`, Strands integrates
-it into the active scope's lifecycle. If the future has already completed,
-Strands adapts it immediately into a completed `Strand` without allocating or
-parking a virtual thread.
+When you pass a `Future` to `Strands.toStrand(Future)`, Strands integrates it
+into the active scope's lifecycle. If the future has already completed, Strands
+returns an immediate `Strand` without parking a virtual thread. For a pending
+future, Strands parks a virtual thread on `future.get()`.
 
-For a pending future, Strands parks a virtual thread waiting on `future.get()`.
-Virtual threads are lightweight, so blocking on `.get()` does not consume an OS
-thread.
+This provides the following behavior:
 
-Wrapping a `Future` provides the following behavior:
-
-*   When the parent scope closes, interrupts the strand, times out the strand,
-    or when the caller explicitly cancels the strand via `strand.cancel()`,
-    Strands propagates cooperative cancellation to the underlying future via
-    `future.cancel(true)`.
+*   When the parent scope closes, interrupts the strand, or when the caller
+    explicitly cancels the `Strand` via `strand.cancel()`, Strands propagates
+    cooperative cancellation to the underlying future via `future.cancel(true)`.
 *   When the future completes exceptionally with an `ExecutionException`,
-    Strands unwraps the cause and throws a `FailedTaskException` containing the
-    underlying exception.
+    Strands unwraps the cause and fails the `Strand` with the underlying
+    exception.
 
 > [!IMPORTANT]
 > Strands executes within its own managed virtual threads, but cannot

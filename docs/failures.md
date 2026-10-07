@@ -46,9 +46,14 @@ try {
 > in `Strands.async(...)`) and sub-scopes run via `Strands.scope(...)` throw
 > their checked and unchecked exceptions directly.
 
-Similarly, when a Strand times out (`await(Duration)`) or undergoes cooperative
-cancellation, `await()` throws a `FailedTaskException` wrapping a
-`TimeoutException` or `CancellationException`.
+Similarly, when a Strand times out (`await(Duration)`), undergoes cooperative
+cancellation, or has its own task thread interrupted, `await()` throws an
+unchecked `FailedTaskException` wrapping a `TimeoutException`,
+`CancellationException`, or `InterruptedException`. By contrast, if the
+**calling thread** blocked inside `strand.await()` or `strand.awaitResult()` is
+interrupted while waiting, `await()` / `awaitResult()` cancels the awaited
+Strand and throws a **checked `InterruptedException`** directly (not wrapped in
+`FailedTaskException`).
 
 ## The `Result` Object for Graceful Degradation
 

@@ -47,15 +47,18 @@ public final class Strands {
   }
 
   /**
-   * Returns a {@link Strand} that is the result of the given {@link Future} executed in the current
-   * scope.
+   * Adapts the given {@link Future} into a {@link Strand} in the current scope.
+   *
+   * <p>The returned {@link Strand} can be awaited directly (e.g. {@code toStrand(future).await()}
+   * or {@code toStrand(future).awaitResult()}) or composed with other {@link Strand} instances
+   * (e.g. via {@link #compose}).
    *
    * <p>NOTE: Strands has no ability to propagate context to futures. The caller is responsible for
    * handling context propagation to futures, e.g. via the Executor the future was created with.
    *
    * @throws IllegalStateException if called from outside the task passed to {@link #concurrent}
    */
-  public static <T extends @Nullable Object> Strand<T> async(Future<T> future) {
+  public static <T extends @Nullable Object> Strand<T> toStrand(Future<T> future) {
     return switch (future.state()) {
       case Future.State.SUCCESS ->
           new ImmediateSuccessfulStrand<T>(Scope.current(), future.resultNow());
